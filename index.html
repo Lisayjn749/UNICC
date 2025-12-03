@@ -1,457 +1,633 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UNICC AI Safety Testing Platform</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body>
-    <div id="root"></div>
+import React, { useState } from 'react';
+import { Shield, AlertTriangle, CheckCircle, XCircle, Activity, FileText, Upload, BarChart3, Settings } from 'lucide-react';
 
-    <script type="text/babel">
-        const { useState } = React;
+const AISafetyDashboard = () => {
+  const [activeTab, setActiveTab] = useState('test');
+  const [testInProgress, setTestInProgress] = useState(false);
+  const [testResults, setTestResults] = useState(null);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [selectedPolicies, setSelectedPolicies] = useState({
+    eu_ai_act: true,
+    us_nist: true,
+    iso: true,
+    unesco: true,
+    oecd: false
+  });
 
-        // Lucide icons as inline SVG components
-        const Shield = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-        );
+  const WEBHOOK_URL = 'https://jiakainiu.app.n8n.cloud/webhook/30146b5a-8c33-4003-9c6d-44114badce13';
+  const USE_PROXY = true; // Toggle this if proxy doesn't work
 
-        const Upload = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-        );
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setUploadedFile(file);
+    }
+  };
 
-        const Activity = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-        );
+  const runTest = async () => {
+    if (!uploadedFile) {
+      alert('Please upload an AI solution document (PDF) first');
+      return;
+    }
 
-        const BarChart3 = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-        );
+    setTestInProgress(true);
+    setActiveTab('dashboard');
 
-        const FileText = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-        );
+    try {
+      console.log('Sending file:', uploadedFile.name);
+      console.log('Selected policies:', Object.keys(selectedPolicies).filter(k => selectedPolicies[k]));
+      
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
+      formData.append('selected_policies', JSON.stringify(
+        Object.keys(selectedPolicies).filter(k => selectedPolicies[k])
+      ));
 
-        const Settings = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-        );
+      // Use CORS proxy to bypass CSP restrictions
+      const targetURL = USE_PROXY 
+        ? `https://corsproxy.io/?${encodeURIComponent(WEBHOOK_URL)}`
+        : WEBHOOK_URL;
 
-        const CheckCircle = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        );
+      console.log('Calling webhook via:', targetURL);
+      
+      const response = await fetch(targetURL, {
+        method: 'POST',
+        body: formData,
+      });
 
-        const AlertTriangle = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-        );
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
 
-        const XCircle = ({ className }) => (
-            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        );
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
 
-        function AISafetyDashboard() {
-            const [activeTab, setActiveTab] = useState('test');
-            const [testInProgress, setTestInProgress] = useState(false);
-            const [testResults, setTestResults] = useState(null);
-            const [uploadedFile, setUploadedFile] = useState(null);
-            const [selectedPolicies, setSelectedPolicies] = useState({
-                eu_ai_act: true,
-                us_nist: true,
-                iso: true,
-                unesco: true,
-                oecd: false,
-                ieee: false
-            });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${responseText}`);
+      }
 
-            const WEBHOOK_URL = 'https://jiakainiu.app.n8n.cloud/webhook/30146b5a-8c33-4003-9c6d-44114badce13';
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse JSON:', e);
+        alert('Received response but could not parse as JSON. Check console for details.');
+        throw new Error('Invalid JSON response');
+      }
 
-            const handleFileUpload = (event) => {
-                const file = event.target.files[0];
-                if (file) {
-                    setUploadedFile(file);
-                }
-            };
+      console.log('Parsed result:', result);
+      setTestResults(result);
+      setTestInProgress(false);
+      alert('Test completed successfully!');
+    } catch (error) {
+      setTestInProgress(false);
+      alert('Error running test: ' + error.message + '\n\nCheck browser console (F12) for details.');
+      console.error('Full error:', error);
+    }
+  };
 
-            const runTest = async () => {
-                if (!uploadedFile) {
-                    alert('Please upload an AI solution document (PDF) first');
-                    return;
-                }
+  const getRiskColor = (risk) => {
+    const riskLower = risk ? risk.toLowerCase() : '';
+    if (riskLower === 'low' || riskLower === 'approve' || riskLower === 'minimal_risk') {
+      return 'text-green-600 bg-green-50 border-green-200';
+    }
+    if (riskLower === 'medium' || riskLower === 'approve_with_conditions' || riskLower === 'limited_risk') {
+      return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    }
+    if (riskLower === 'high' || riskLower === 'hold_and_fix' || riskLower === 'high_risk') {
+      return 'text-red-600 bg-red-50 border-red-200';
+    }
+    if (riskLower === 'unacceptable') {
+      return 'text-red-900 bg-red-100 border-red-300';
+    }
+    return 'text-gray-600 bg-gray-50 border-gray-200';
+  };
 
-                setTestInProgress(true);
-                setActiveTab('dashboard');
+  const getStatusIcon = (status) => {
+    const statusLower = status ? status.toLowerCase() : '';
+    if (statusLower.includes('approve') && !statusLower.includes('conditions')) {
+      return <CheckCircle className="w-5 h-5 text-green-600" />;
+    }
+    if (statusLower.includes('conditions') || statusLower.includes('warning')) {
+      return <AlertTriangle className="w-5 h-5 text-yellow-600" />;
+    }
+    if (statusLower.includes('hold') || statusLower.includes('fail')) {
+      return <XCircle className="w-5 h-5 text-red-600" />;
+    }
+    return <Activity className="w-5 h-5 text-gray-600" />;
+  };
 
-                try {
-                    console.log('Sending file:', uploadedFile.name);
-                    console.log('Selected policies:', Object.keys(selectedPolicies).filter(k => selectedPolicies[k]));
-                    
-                    const formData = new FormData();
-                    formData.append('file', uploadedFile);
-                    formData.append('selected_policies', JSON.stringify(
-                        Object.keys(selectedPolicies).filter(k => selectedPolicies[k])
-                    ));
+  const calculateOverallScore = (report) => {
+    if (!report || !report.category_summary) return 0;
+    const categories = Object.values(report.category_summary);
+    const total = categories.reduce((sum, cat) => sum + (cat.pass || 0), 0);
+    const failed = categories.reduce((sum, cat) => sum + (cat.fail || 0), 0);
+    const attention = categories.reduce((sum, cat) => sum + (cat.needs_attention || 0), 0);
+    const totalTests = total + failed + attention;
+    return totalTests > 0 ? Math.round((total / totalTests) * 100) : 0;
+  };
 
-                    console.log('Calling webhook:', WEBHOOK_URL);
-                    
-                    const response = await fetch(WEBHOOK_URL, {
-                        method: 'POST',
-                        body: formData,
-                    });
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-blue-900 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Shield className="w-8 h-8" />
+              <div>
+                <h1 className="text-2xl font-bold">UNICC AI Safety Testing Platform</h1>
+                <p className="text-blue-200 text-sm">Secure AI Evaluation & Compliance Assessment</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-blue-200">UN AI Sandbox Environment</span>
+              <div className="w-10 h-10 bg-blue-700 rounded-full flex items-center justify-center font-semibold">LY</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                    console.log('Response status:', response.status);
+      {/* Navigation */}
+      <div className="bg-white border-b shadow-sm">
+        <div className="max-w-7xl mx-auto px-6">
+          <nav className="flex gap-8">
+            {[
+              { id: 'test', label: 'Upload & Test', icon: Upload },
+              { id: 'dashboard', label: 'Results', icon: BarChart3 },
+              { id: 'reports', label: 'Detailed Report', icon: FileText },
+              { id: 'settings', label: 'Settings', icon: Settings },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 py-4 px-2 border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-blue-600'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
 
-                    const responseText = await response.text();
-                    console.log('Raw response:', responseText);
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${responseText}`);
-                    }
-
-                    let result;
-                    try {
-                        result = JSON.parse(responseText);
-                    } catch (e) {
-                        console.error('Failed to parse JSON:', e);
-                        alert('Received response but could not parse as JSON. Check console for details.');
-                        throw new Error('Invalid JSON response');
-                    }
-
-                    console.log('Parsed result:', result);
-                    setTestResults(result);
-                    setTestInProgress(false);
-                    alert('Test completed successfully!');
-                } catch (error) {
-                    setTestInProgress(false);
-                    alert('Error running test: ' + error.message);
-                    console.error('Full error:', error);
-                }
-            };
-
-            const getRiskColor = (risk) => {
-                const riskLower = risk ? risk.toLowerCase() : '';
-                if (riskLower === 'low' || riskLower === 'approve' || riskLower === 'minimal_risk') {
-                    return 'text-green-600 bg-green-50 border-green-200';
-                }
-                if (riskLower === 'medium' || riskLower === 'approve_with_conditions' || riskLower === 'limited_risk') {
-                    return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-                }
-                if (riskLower === 'high' || riskLower === 'hold_and_fix' || riskLower === 'high_risk') {
-                    return 'text-red-600 bg-red-50 border-red-200';
-                }
-                return 'text-gray-600 bg-gray-50 border-gray-200';
-            };
-
-            const getStatusIcon = (status) => {
-                const statusLower = status ? status.toLowerCase() : '';
-                if (statusLower.includes('approve') && !statusLower.includes('conditions')) {
-                    return <CheckCircle className="w-5 h-5 text-green-600" />;
-                }
-                if (statusLower.includes('conditions') || statusLower.includes('warning')) {
-                    return <AlertTriangle className="w-5 h-5 text-yellow-600" />;
-                }
-                if (statusLower.includes('hold') || statusLower.includes('fail')) {
-                    return <XCircle className="w-5 h-5 text-red-600" />;
-                }
-                return <Activity className="w-5 h-5 text-gray-600" />;
-            };
-
-            const calculateOverallScore = (report) => {
-                if (!report || !report.category_summary) return 0;
-                const categories = Object.values(report.category_summary);
-                const total = categories.reduce((sum, cat) => sum + (cat.pass || 0), 0);
-                const failed = categories.reduce((sum, cat) => sum + (cat.fail || 0), 0);
-                const attention = categories.reduce((sum, cat) => sum + (cat.needs_attention || 0), 0);
-                const totalTests = total + failed + attention;
-                return totalTests > 0 ? Math.round((total / totalTests) * 100) : 0;
-            };
-
-            return (
-                <div className="min-h-screen bg-gray-50">
-                    {/* Header */}
-                    <div className="bg-blue-900 text-white shadow-lg">
-                        <div className="max-w-7xl mx-auto px-6 py-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <Shield className="w-8 h-8" />
-                                    <div>
-                                        <h1 className="text-2xl font-bold">UNICC AI Safety Testing Platform</h1>
-                                        <p className="text-blue-200 text-sm">Secure AI Evaluation & Compliance Assessment</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="text-sm text-blue-200">UN AI Sandbox Environment</span>
-                                    <div className="w-10 h-10 bg-blue-700 rounded-full flex items-center justify-center font-semibold">LY</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Navigation */}
-                    <div className="bg-white border-b shadow-sm">
-                        <div className="max-w-7xl mx-auto px-6">
-                            <nav className="flex gap-8">
-                                {[
-                                    { id: 'test', label: 'Upload & Test', icon: Upload },
-                                    { id: 'dashboard', label: 'Results', icon: BarChart3 },
-                                    { id: 'reports', label: 'Detailed Report', icon: FileText },
-                                    { id: 'settings', label: 'Settings', icon: Settings },
-                                ].map(tab => (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id)}
-                                        className={`flex items-center gap-2 py-4 px-2 border-b-2 transition-colors ${
-                                            activeTab === tab.id
-                                                ? 'border-blue-600 text-blue-600'
-                                                : 'border-transparent text-gray-600 hover:text-blue-600'
-                                        }`}
-                                    >
-                                        <tab.icon className="w-4 h-4" />
-                                        {tab.label}
-                                    </button>
-                                ))}
-                            </nav>
-                        </div>
-                    </div>
-
-                    {/* Main Content */}
-                    <div className="max-w-7xl mx-auto px-6 py-8">
-                        {activeTab === 'test' && (
-                            <div className="space-y-6">
-                                {/* Instructions */}
-                                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
-                                    <div className="flex items-start gap-4">
-                                        <Shield className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
-                                        <div>
-                                            <h3 className="font-bold text-gray-900 mb-2">Welcome to AI Safety Testing</h3>
-                                            <p className="text-sm text-gray-700">
-                                                Upload your AI solution document (PDF) to evaluate it against international compliance frameworks and safety standards.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* File Upload */}
-                                <div className="bg-white rounded-lg shadow p-6">
-                                    <h2 className="text-xl font-bold text-gray-900 mb-4">Upload AI Solution Document</h2>
-                                    
-                                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
-                                        <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                        {uploadedFile ? (
-                                            <div>
-                                                <p className="text-green-600 font-medium mb-2">✓ File uploaded successfully</p>
-                                                <p className="text-sm text-gray-600">{uploadedFile.name}</p>
-                                                <button 
-                                                    onClick={() => setUploadedFile(null)}
-                                                    className="mt-3 text-sm text-blue-600 hover:text-blue-800"
-                                                >
-                                                    Remove file
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                <p className="text-gray-700 font-medium mb-2">Drop your PDF here or click to browse</p>
-                                                <label className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 cursor-pointer inline-block">
-                                                    Select PDF File
-                                                    <input 
-                                                        type="file" 
-                                                        accept=".pdf"
-                                                        onChange={handleFileUpload}
-                                                        className="hidden"
-                                                    />
-                                                </label>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Policy Selection */}
-                                <div className="bg-white rounded-lg shadow p-6">
-                                    <h2 className="text-xl font-bold text-gray-900 mb-4">Select Compliance Frameworks</h2>
-                                    
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {[
-                                            { id: 'eu_ai_act', label: 'EU AI Act', description: 'European Union Artificial Intelligence Act' },
-                                            { id: 'us_nist', label: 'US NIST AI RMF', description: 'NIST AI Risk Management Framework' },
-                                            { id: 'iso', label: 'ISO/IEC Standards', description: 'ISO/IEC 42001, 23894, 27001' },
-                                            { id: 'unesco', label: 'UNESCO AI Ethics', description: 'UNESCO Recommendation on AI Ethics' },
-                                            { id: 'oecd', label: 'OECD AI Principles', description: 'OECD AI Principles & Guidelines' },
-                                            { id: 'ieee', label: 'IEEE 7000 Series', description: 'IEEE Standards for Ethical AI' },
-                                        ].map(policy => (
-                                            <label 
-                                                key={policy.id}
-                                                className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                                                    selectedPolicies[policy.id] 
-                                                        ? 'border-blue-500 bg-blue-50' 
-                                                        : 'border-gray-200 hover:border-gray-300'
-                                                }`}
-                                            >
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={selectedPolicies[policy.id] || false}
-                                                    onChange={(e) => setSelectedPolicies({...selectedPolicies, [policy.id]: e.target.checked})}
-                                                    className="w-5 h-5 text-blue-600 mt-0.5"
-                                                />
-                                                <div>
-                                                    <div className="font-medium text-gray-900">{policy.label}</div>
-                                                    <div className="text-xs text-gray-600">{policy.description}</div>
-                                                </div>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Run Test Button */}
-                                <div className="bg-white rounded-lg shadow p-6">
-                                    <button 
-                                        onClick={runTest}
-                                        disabled={testInProgress || !uploadedFile}
-                                        className="w-full bg-blue-600 text-white py-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg"
-                                    >
-                                        {testInProgress ? (
-                                            <>
-                                                <Activity className="w-6 h-6 animate-spin" />
-                                                Analyzing Document...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Shield className="w-6 h-6" />
-                                                Run AI Safety Test
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'dashboard' && (
-                            <div className="space-y-6">
-                                {testInProgress ? (
-                                    <div className="bg-white rounded-lg shadow p-12 text-center">
-                                        <Activity className="w-16 h-16 text-blue-600 mx-auto mb-4 animate-spin" />
-                                        <h3 className="text-xl font-bold text-gray-900 mb-2">Processing...</h3>
-                                        <p className="text-gray-600">Analyzing your AI solution against compliance frameworks</p>
-                                    </div>
-                                ) : testResults ? (
-                                    <>
-                                        <div className="grid grid-cols-3 gap-6">
-                                            <div className="bg-white p-6 rounded-lg shadow">
-                                                <h3 className="text-sm font-medium text-gray-600 mb-2">Overall Score</h3>
-                                                <p className="text-4xl font-bold text-gray-900">{calculateOverallScore(testResults)}%</p>
-                                            </div>
-                                            <div className="bg-white p-6 rounded-lg shadow">
-                                                <h3 className="text-sm font-medium text-gray-600 mb-2">Risk Level</h3>
-                                                <p className="text-xl font-bold text-gray-900 capitalize">
-                                                    {testResults.final_recommendation ? testResults.final_recommendation.replace(/_/g, ' ') : 'N/A'}
-                                                </p>
-                                            </div>
-                                            <div className="bg-white p-6 rounded-lg shadow">
-                                                <h3 className="text-sm font-medium text-gray-600 mb-2">Model</h3>
-                                                <p className="text-lg font-bold text-gray-900">
-                                                    {testResults.model_summary?.name || testResults.model_overview?.name || 'N/A'}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {testResults.top_risks && testResults.top_risks.length > 0 && (
-                                            <div className="bg-white rounded-lg shadow p-6">
-                                                <h2 className="text-xl font-bold text-gray-900 mb-4">Top Risks</h2>
-                                                <div className="space-y-3">
-                                                    {testResults.top_risks.map((risk, idx) => (
-                                                        <div key={idx} className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                                            <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                                                            <p className="font-medium text-gray-900">{typeof risk === 'string' ? risk : risk.name}</p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div className={`rounded-lg p-6 border-2 ${getRiskColor(testResults.final_recommendation)}`}>
-                                            <h2 className="text-xl font-bold mb-2">Final Recommendation</h2>
-                                            <p className="text-lg font-medium uppercase">
-                                                {testResults.final_recommendation ? testResults.final_recommendation.replace(/_/g, ' ') : 'N/A'}
-                                            </p>
-                                        </div>
-
-                                        <button 
-                                            onClick={() => setActiveTab('reports')}
-                                            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700"
-                                        >
-                                            View Detailed Report
-                                        </button>
-                                    </>
-                                ) : (
-                                    <div className="bg-white rounded-lg shadow p-12 text-center">
-                                        <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                        <h3 className="text-xl font-bold text-gray-900 mb-2">No Results Yet</h3>
-                                        <button 
-                                            onClick={() => setActiveTab('test')}
-                                            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
-                                        >
-                                            Upload Document
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {activeTab === 'reports' && (
-                            <div className="bg-white rounded-lg shadow p-6">
-                                <h2 className="text-xl font-bold text-gray-900 mb-6">Detailed Report</h2>
-                                {testResults ? (
-                                    <div className="space-y-4">
-                                        <pre className="bg-gray-100 p-4 rounded text-xs overflow-auto">
-                                            {JSON.stringify(testResults, null, 2)}
-                                        </pre>
-                                    </div>
-                                ) : (
-                                    <p className="text-center text-gray-500">No report available</p>
-                                )}
-                            </div>
-                        )}
-
-                        {activeTab === 'settings' && (
-                            <div className="bg-white rounded-lg shadow p-6">
-                                <h2 className="text-xl font-bold text-gray-900 mb-6">Settings</h2>
-                                <div>
-                                    <label className="block text-sm text-gray-700 mb-1">Webhook URL</label>
-                                    <input 
-                                        type="text" 
-                                        value={WEBHOOK_URL}
-                                        readOnly
-                                        className="w-full px-3 py-2 border rounded bg-gray-50"
-                                    />
-                                </div>
-                            </div>
-                        )}
-                    </div>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {activeTab === 'test' && (
+          <div className="space-y-6">
+            {/* Instructions */}
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
+              <div className="flex items-start gap-4">
+                <Shield className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-2">Welcome to AI Safety Testing</h3>
+                  <p className="text-sm text-gray-700 mb-2">
+                    Upload your AI solution document (PDF) to evaluate it against international compliance frameworks and safety standards.
+                  </p>
+                  <ul className="text-sm text-gray-700 space-y-1 ml-4 list-disc">
+                    <li>Upload a PDF describing your AI solution</li>
+                    <li>Select which policies to test against</li>
+                    <li>Our AI agent will analyze compliance and generate a detailed report</li>
+                  </ul>
                 </div>
-            );
-        }
+              </div>
+            </div>
 
-        ReactDOM.render(<AISafetyDashboard />, document.getElementById('root'));
-    </script>
-</body>
-</html>
+            {/* File Upload Section */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Upload AI Solution Document</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Upload a PDF document describing your AI solution, including its purpose, architecture, training data, and deployment details.
+              </p>
+              
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                {uploadedFile ? (
+                  <div>
+                    <p className="text-green-600 font-medium mb-2">✓ File uploaded successfully</p>
+                    <p className="text-sm text-gray-600">{uploadedFile.name}</p>
+                    <button 
+                      onClick={() => setUploadedFile(null)}
+                      className="mt-3 text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Remove file
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-gray-700 font-medium mb-2">Drop your PDF here or click to browse</p>
+                    <p className="text-sm text-gray-500 mb-4">Maximum file size: 10MB</p>
+                    <label className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 cursor-pointer inline-block">
+                      Select PDF File
+                      <input 
+                        type="file" 
+                        accept=".pdf"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Policy Selection */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Select Compliance Frameworks to Test</h2>
+              <p className="text-sm text-gray-600 mb-4">Choose which regulatory frameworks and standards to evaluate your AI solution against.</p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { id: 'eu_ai_act', label: 'EU AI Act', description: 'European Union Artificial Intelligence Act' },
+                  { id: 'us_nist', label: 'US NIST AI RMF', description: 'NIST AI Risk Management Framework' },
+                  { id: 'iso', label: 'ISO/IEC Standards', description: 'ISO/IEC 42001, 23894, 27001' },
+                  { id: 'unesco', label: 'UNESCO AI Ethics', description: 'UNESCO Recommendation on AI Ethics' },
+                  { id: 'oecd', label: 'OECD AI Principles', description: 'OECD AI Principles & Guidelines' },
+                  { id: 'ieee', label: 'IEEE 7000 Series', description: 'IEEE Standards for Ethical AI' },
+                ].map(policy => (
+                  <label 
+                    key={policy.id}
+                    className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      selectedPolicies[policy.id] 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={selectedPolicies[policy.id] || false}
+                      onChange={(e) => setSelectedPolicies({...selectedPolicies, [policy.id]: e.target.checked})}
+                      className="w-5 h-5 text-blue-600 mt-0.5"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-900">{policy.label}</div>
+                      <div className="text-xs text-gray-600">{policy.description}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Run Test Button */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <button 
+                onClick={() => {
+                  console.log('=== RUN TEST CLICKED ===');
+                  console.log('File uploaded?', !!uploadedFile);
+                  console.log('File name:', uploadedFile?.name);
+                  runTest();
+                }}
+                disabled={testInProgress || !uploadedFile}
+                className="w-full bg-blue-600 text-white py-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg"
+              >
+                {testInProgress ? (
+                  <>
+                    <Activity className="w-6 h-6 animate-spin" />
+                    Analyzing Document & Running Safety Tests...
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-6 h-6" />
+                    Run AI Safety Test
+                  </>
+                )}
+              </button>
+              {!uploadedFile && (
+                <p className="text-sm text-gray-500 text-center mt-3">Please upload a PDF document first</p>
+              )}
+              
+              {/* Debug info */}
+              <div className="mt-4 p-3 bg-gray-100 rounded text-xs">
+                <p><strong>Debug Info:</strong></p>
+                <p>File: {uploadedFile ? uploadedFile.name : 'No file uploaded'}</p>
+                <p>Webhook: {WEBHOOK_URL}</p>
+                <p>Policies: {Object.keys(selectedPolicies).filter(k => selectedPolicies[k]).join(', ')}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            {testInProgress ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <Activity className="w-16 h-16 text-blue-600 mx-auto mb-4 animate-spin" />
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Processing Your AI Solution...</h3>
+                <p className="text-gray-600 mb-4">Our AI agent is analyzing your document against compliance frameworks</p>
+                <div className="max-w-md mx-auto">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }} />
+                  </div>
+                </div>
+              </div>
+            ) : testResults ? (
+              <>
+                {/* Overall Summary Cards */}
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="bg-white p-6 rounded-lg shadow">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-medium text-gray-600">Overall Score</h3>
+                      <Activity className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <p className="text-4xl font-bold text-gray-900">{calculateOverallScore(testResults)}%</p>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-lg shadow">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-medium text-gray-600">Risk Level</h3>
+                      {getStatusIcon(testResults.final_recommendation)}
+                    </div>
+                    <p className="text-xl font-bold text-gray-900 capitalize">
+                      {testResults.final_recommendation ? testResults.final_recommendation.replace(/_/g, ' ') : 'Pending'}
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-lg shadow">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-medium text-gray-600">Model Tested</h3>
+                      <Shield className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <p className="text-lg font-bold text-gray-900">
+                      {testResults.model_summary && testResults.model_summary.name ? testResults.model_summary.name : testResults.model_overview?.name || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Category Breakdown */}
+                {testResults.category_summary && (
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">Risk Category Analysis</h2>
+                    <div className="grid grid-cols-2 gap-6">
+                      {Object.entries(testResults.category_summary).map(([category, data]) => (
+                        <div key={category} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-center mb-3">
+                            <h3 className="font-bold text-gray-900">{category}</h3>
+                            <span className="text-sm text-gray-600">
+                              Avg Severity: {data.avg_severity ? data.avg_severity.toFixed(1) : '0'}
+                            </span>
+                          </div>
+                          <div className="flex gap-6 text-sm">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              <span className="text-green-600 font-medium">{data.pass || 0} Passed</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                              <span className="text-yellow-600 font-medium">{data.needs_attention || 0} Warning</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <XCircle className="w-4 h-4 text-red-600" />
+                              <span className="text-red-600 font-medium">{data.fail || 0} Failed</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Category Radar (if exists) */}
+                {testResults.category_radar && (
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">Risk Radar Chart</h2>
+                    <div className="grid grid-cols-4 gap-4">
+                      {Object.entries(testResults.category_radar).map(([category, score]) => (
+                        <div key={category} className="text-center">
+                          <div className="text-3xl font-bold text-blue-600 mb-1">{score}/10</div>
+                          <div className="text-sm text-gray-600">{category}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top Risks */}
+                {testResults.top_risks && testResults.top_risks.length > 0 && (
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">Top Identified Risks</h2>
+                    <div className="space-y-3">
+                      {testResults.top_risks.map((risk, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{typeof risk === 'string' ? risk : risk.name || risk.title}</p>
+                            {risk.category && (
+                              <p className="text-sm text-gray-600 mt-1">Category: {risk.category}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Final Recommendation */}
+                <div className={`rounded-lg p-6 border-2 ${getRiskColor(testResults.final_recommendation)}`}>
+                  <h2 className="text-xl font-bold mb-2">Final Recommendation</h2>
+                  <p className="text-lg font-medium uppercase mb-4">
+                    {testResults.final_recommendation ? testResults.final_recommendation.replace(/_/g, ' ') : 'N/A'}
+                  </p>
+                  {testResults.executive_summary && (
+                    <p className="text-sm">{testResults.executive_summary}</p>
+                  )}
+                </div>
+
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setActiveTab('reports')}
+                    className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-medium"
+                  >
+                    View Detailed Report
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setTestResults(null);
+                      setUploadedFile(null);
+                      setActiveTab('test');
+                    }}
+                    className="flex-1 border-2 border-blue-600 text-blue-600 py-3 rounded-lg hover:bg-blue-50 font-medium"
+                  >
+                    Test Another Solution
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-gray-900 mb-2">No Test Results Yet</h3>
+                <p className="text-gray-600 mb-6">Upload an AI solution document to get started</p>
+                <button 
+                  onClick={() => setActiveTab('test')}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Upload Document
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'reports' && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Detailed Compliance Report</h2>
+            {testResults ? (
+              <div className="space-y-6">
+                {/* Model Overview */}
+                {(testResults.model_summary || testResults.model_overview) && (
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-bold text-lg mb-3">Model Information</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      {Object.entries(testResults.model_summary || testResults.model_overview).map(([key, value]) => (
+                        <div key={key}>
+                          <span className="text-gray-600 capitalize">{key.replace(/_/g, ' ')}:</span>
+                          <span className="ml-2 font-medium">{value || 'N/A'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Policy Alignment */}
+                {testResults.policy_alignment && (
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-bold text-lg mb-3">Policy Alignment Details</h3>
+                    <div className="space-y-4">
+                      {Object.entries(testResults.policy_alignment).map(([policy, details]) => (
+                        <div key={policy} className="p-4 bg-gray-50 rounded">
+                          <h4 className="font-medium text-gray-900 mb-2">{policy.replace(/_/g, ' ').toUpperCase()}</h4>
+                          {typeof details === 'object' && details !== null ? (
+                            <div className="text-sm space-y-2">
+                              {details.risk_category && (
+                                <p><span className="font-medium">Risk Category:</span> {details.risk_category}</p>
+                              )}
+                              {details.key_obligations && Array.isArray(details.key_obligations) && (
+                                <div>
+                                  <span className="font-medium">Key Obligations:</span>
+                                  <ul className="ml-4 mt-1 list-disc">
+                                    {details.key_obligations.map((ob, idx) => (
+                                      <li key={idx}>{ob}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {details.notes && (
+                                <p className="text-gray-600 italic">{details.notes}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm">{details}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Compliance Mapping */}
+                {testResults.compliance_mapping && (
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-bold text-lg mb-3">Compliance Status</h3>
+                    <div className="space-y-3">
+                      {Object.entries(testResults.compliance_mapping).map(([framework, status]) => (
+                        <div key={framework} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                          <span className="font-medium">{framework.replace(/_/g, ' ').toUpperCase()}</span>
+                          <span className="text-sm">{Array.isArray(status) ? status.join(', ') : status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Gaps and Actions */}
+                {testResults.gaps_and_actions && testResults.gaps_and_actions.length > 0 && (
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-bold text-lg mb-3">Gaps & Recommended Actions</h3>
+                    <div className="space-y-3">
+                      {testResults.gaps_and_actions.map((item, idx) => (
+                        <div key={idx} className="p-3 bg-red-50 border border-red-200 rounded">
+                          <div className="flex justify-between items-start mb-2">
+                            <p className="font-medium text-red-900">{item.gap}</p>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              item.priority === 'high' ? 'bg-red-200 text-red-800' :
+                              item.priority === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                              'bg-gray-200 text-gray-800'
+                            }`}>
+                              {item.priority} priority
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700">
+                            <span className="font-medium">Action:</span> {item.recommended_action}
+                          </p>
+                          {item.eta_days && (
+                            <p className="text-xs text-gray-600 mt-1">ETA: {item.eta_days} days</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-medium">
+                  Export Full Report (PDF)
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                <p>No report available. Run a test first.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Settings</h2>
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">n8n Webhook Configuration</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">Webhook URL</label>
+                    <input 
+                      type="text" 
+                      value={WEBHOOK_URL}
+                      readOnly
+                      className="w-full px-3 py-2 border rounded bg-gray-50"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Connected to n8n workflow</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">Safety Thresholds</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Minimum passing score:</span>
+                    <input type="number" defaultValue="70" className="w-20 px-3 py-1 border rounded" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">High risk threshold:</span>
+                    <input type="number" defaultValue="60" className="w-20 px-3 py-1 border rounded" />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">Notification Preferences</h3>
+                <label className="flex items-center gap-3">
+                  <input type="checkbox" defaultChecked className="w-4 h-4" />
+                  <span className="text-sm">Email notifications for completed tests</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default AISafetyDashboard;
