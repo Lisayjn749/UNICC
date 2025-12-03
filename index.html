@@ -377,14 +377,230 @@
                         )}
 
                         {activeTab === 'reports' && (
-                            <div className="bg-white rounded-lg shadow p-6">
-                                <h2 className="text-xl font-bold mb-6">Detailed Report</h2>
+                            <div className="space-y-6">
                                 {currentTestResult ? (
-                                    <pre className="bg-gray-100 p-4 rounded text-xs overflow-auto">
-                                        {JSON.stringify(currentTestResult, null, 2)}
-                                    </pre>
+                                    <>
+                                        {/* Header with Download */}
+                                        <div className="bg-white rounded-lg shadow p-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h2 className="text-2xl font-bold text-gray-900">AI Safety Compliance Report</h2>
+                                                <button 
+                                                    onClick={() => {
+                                                        window.print();
+                                                    }}
+                                                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                                                >
+                                                    <FileText className="w-4 h-4" />
+                                                    Download PDF
+                                                </button>
+                                            </div>
+                                            <div className="text-sm text-gray-600">
+                                                <p>Generated: {new Date().toLocaleString()}</p>
+                                                <p>Model: {currentTestResult.output?.model_name || currentTestResult.model_summary?.name || currentTestResult.model_overview?.name || 'N/A'}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Executive Summary */}
+                                        {currentTestResult.output?.summary && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Executive Summary</h3>
+                                                <p className="text-gray-700 leading-relaxed">{currentTestResult.output.summary}</p>
+                                            </div>
+                                        )}
+
+                                        {/* Risk Tier & Recommendation */}
+                                        <div className="grid grid-cols-2 gap-6">
+                                            {currentTestResult.output?.risk_tier && (
+                                                <div className={`rounded-lg shadow p-6 border-2 ${getRiskColor(currentTestResult.output.risk_tier.toLowerCase())}`}>
+                                                    <h3 className="text-lg font-bold mb-2">Overall Risk Tier</h3>
+                                                    <p className="text-3xl font-bold uppercase">{currentTestResult.output.risk_tier}</p>
+                                                </div>
+                                            )}
+                                            {currentTestResult.output?.recommendation && (
+                                                <div className="bg-white rounded-lg shadow p-6 border-2 border-blue-200">
+                                                    <h3 className="text-lg font-bold mb-2">Recommendation</h3>
+                                                    <p className="text-gray-700">{currentTestResult.output.recommendation}</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Category Radar Analysis */}
+                                        {currentTestResult.metrics_snapshot?.category_radar && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Risk Analysis by Category</h3>
+                                                <div className="grid grid-cols-2 gap-6">
+                                                    {Object.entries(currentTestResult.metrics_snapshot.category_radar).map(([category, data]) => (
+                                                        <div key={category} className="border rounded-lg p-4">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <h4 className="font-bold text-gray-900">{category}</h4>
+                                                                {data.assessed ? (
+                                                                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">Assessed</span>
+                                                                ) : (
+                                                                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">Not Assessed</span>
+                                                                )}
+                                                            </div>
+                                                            {data.assessed ? (
+                                                                <>
+                                                                    <div className="mb-3">
+                                                                        <span className="text-sm text-gray-600">Avg Severity: </span>
+                                                                        <span className="text-lg font-bold text-red-600">{data.avg_severity}/5</span>
+                                                                    </div>
+                                                                    <div className="flex gap-4 text-sm">
+                                                                        <div className="flex items-center gap-1">
+                                                                            <CheckCircle className="w-4 h-4 text-green-600" />
+                                                                            <span>{data.pass} Pass</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                                                            <span>{data.needs_attention} Warning</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <XCircle className="w-4 h-4 text-red-600" />
+                                                                            <span>{data.fail} Fail</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <p className="text-sm text-gray-500">Category requires further assessment</p>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Top Risks */}
+                                        {currentTestResult.metrics_snapshot?.top_risks && currentTestResult.metrics_snapshot.top_risks.length > 0 && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Top Identified Risks</h3>
+                                                <div className="space-y-3">
+                                                    {currentTestResult.metrics_snapshot.top_risks.map((risk, idx) => (
+                                                        <div key={idx} className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                                            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                                            <div>
+                                                                <p className="font-medium text-gray-900">{risk.replace(/_/g, ' ')}</p>
+                                                                <p className="text-sm text-gray-600 mt-1">Priority #{idx + 1}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Policy Alignment */}
+                                        {currentTestResult.output?.policy_alignment && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Policy Alignment Status</h3>
+                                                
+                                                {currentTestResult.output.policy_alignment.aligned && currentTestResult.output.policy_alignment.aligned.length > 0 && (
+                                                    <div className="mb-6">
+                                                        <h4 className="font-bold text-green-700 mb-2 flex items-center gap-2">
+                                                            <CheckCircle className="w-5 h-5" />
+                                                            Aligned Policies
+                                                        </h4>
+                                                        <ul className="space-y-2">
+                                                            {currentTestResult.output.policy_alignment.aligned.map((policy, idx) => (
+                                                                <li key={idx} className="text-sm text-gray-700 pl-4 border-l-2 border-green-500">
+                                                                    {policy}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+
+                                                {currentTestResult.output.policy_alignment.partially_aligned && currentTestResult.output.policy_alignment.partially_aligned.length > 0 && (
+                                                    <div className="mb-6">
+                                                        <h4 className="font-bold text-yellow-700 mb-2 flex items-center gap-2">
+                                                            <AlertTriangle className="w-5 h-5" />
+                                                            Partially Aligned Policies
+                                                        </h4>
+                                                        <ul className="space-y-2">
+                                                            {currentTestResult.output.policy_alignment.partially_aligned.map((policy, idx) => (
+                                                                <li key={idx} className="text-sm text-gray-700 pl-4 border-l-2 border-yellow-500">
+                                                                    {policy}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+
+                                                {currentTestResult.output.policy_alignment.not_aligned && currentTestResult.output.policy_alignment.not_aligned.length > 0 && (
+                                                    <div>
+                                                        <h4 className="font-bold text-red-700 mb-2 flex items-center gap-2">
+                                                            <XCircle className="w-5 h-5" />
+                                                            Not Aligned Policies
+                                                        </h4>
+                                                        <ul className="space-y-2">
+                                                            {currentTestResult.output.policy_alignment.not_aligned.map((policy, idx) => (
+                                                                <li key={idx} className="text-sm text-gray-700 pl-4 border-l-2 border-red-500">
+                                                                    {policy}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Policy Statistics */}
+                                        {currentTestResult.metrics_snapshot?.policy_stats && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Policy Testing Statistics</h3>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    {Object.entries(currentTestResult.metrics_snapshot.policy_stats).map(([policy, stats]) => (
+                                                        <div key={policy} className="border rounded-lg p-4">
+                                                            <h4 className="font-bold text-gray-900 mb-2">{policy.replace(/_/g, ' ')}</h4>
+                                                            {stats.assessed ? (
+                                                                <div className="flex gap-4 text-sm">
+                                                                    <span className="text-green-600">✓ {stats.pass}</span>
+                                                                    <span className="text-yellow-600">⚠ {stats.needs_attention}</span>
+                                                                    <span className="text-red-600">✗ {stats.fail}</span>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-sm text-gray-500">Not assessed</span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Presentation Outline */}
+                                        {currentTestResult.output?.ppt_outline && currentTestResult.output.ppt_outline.length > 0 && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Presentation Outline</h3>
+                                                <div className="space-y-4">
+                                                    {currentTestResult.output.ppt_outline.map((slide, idx) => (
+                                                        <div key={idx} className="border-l-4 border-blue-500 pl-4">
+                                                            <h4 className="font-bold text-gray-900 mb-2">Slide {idx + 1}: {slide.title}</h4>
+                                                            <ul className="list-disc list-inside space-y-1">
+                                                                {slide.bullets.map((bullet, bidx) => (
+                                                                    <li key={bidx} className="text-sm text-gray-700">{bullet}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Raw JSON Toggle */}
+                                        <div className="bg-white rounded-lg shadow p-6">
+                                            <details>
+                                                <summary className="font-bold text-gray-900 cursor-pointer hover:text-blue-600">
+                                                    View Raw JSON Data
+                                                </summary>
+                                                <pre className="mt-4 bg-gray-100 p-4 rounded text-xs overflow-auto max-h-96">
+                                                    {JSON.stringify(currentTestResult, null, 2)}
+                                                </pre>
+                                            </details>
+                                        </div>
+                                    </>
                                 ) : (
-                                    <p className="text-center text-gray-500">No report available</p>
+                                    <div className="bg-white rounded-lg shadow p-12 text-center">
+                                        <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                                        <p className="text-gray-500">No report available. Run a test first.</p>
+                                    </div>
                                 )}
                             </div>
                         )}
