@@ -32,14 +32,12 @@
         const CheckCircle = ({ className }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
         const AlertTriangle = ({ className }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>;
         const XCircle = ({ className }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
-        const ChevronRight = ({ className }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>;
 
         function AISafetyDashboard() {
             const [activeTab, setActiveTab] = useState('dashboard');
             const [testInProgress, setTestInProgress] = useState(false);
             const [currentTestResult, setCurrentTestResult] = useState(null);
             const [testHistory, setTestHistory] = useState([]);
-            const [selectedTest, setSelectedTest] = useState(null);
             const [uploadedFile, setUploadedFile] = useState(null);
             const [selectedPolicies, setSelectedPolicies] = useState({
                 eu_ai_act: true,
@@ -75,7 +73,7 @@
                 }
 
                 setTestInProgress(true);
-                setActiveTab('reports');
+                setActiveTab('results');
 
                 try {
                     const formData = new FormData();
@@ -99,8 +97,8 @@
                         date: new Date().toISOString(),
                         result: result,
                         score: calculateOverallScore(result),
-                        status: getStatusFromRecommendation(result.output?.recommendation || result.final_recommendation),
-                        risk: getRiskFromRecommendation(result.output?.risk_tier || result.final_recommendation)
+                        status: getStatusFromRecommendation(result.final_recommendation),
+                        risk: getRiskFromRecommendation(result.final_recommendation)
                     };
 
                     setTestHistory([testRecord, ...testHistory]);
@@ -116,8 +114,8 @@
             const getRiskFromRecommendation = (rec) => {
                 if (!rec) return 'medium';
                 const r = rec.toLowerCase();
-                if (r.includes('low') || (r.includes('approve') && !r.includes('conditions'))) return 'low';
-                if (r.includes('medium') || r.includes('conditions')) return 'medium';
+                if (r.includes('approve') && !r.includes('conditions')) return 'low';
+                if (r.includes('conditions')) return 'medium';
                 return 'high';
             };
 
@@ -131,10 +129,10 @@
 
             const getRiskColor = (risk) => {
                 const riskLower = risk ? risk.toLowerCase() : '';
-                if (riskLower === 'low') return 'text-green-600 bg-green-50 border-green-200';
-                if (riskLower === 'medium') return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-                if (riskLower === 'high') return 'text-red-600 bg-red-50 border-red-200';
-                return 'text-gray-600 bg-gray-50 border-gray-200';
+                if (riskLower === 'low') return 'text-green-600 bg-green-50';
+                if (riskLower === 'medium') return 'text-yellow-600 bg-yellow-50';
+                if (riskLower === 'high') return 'text-red-600 bg-red-50';
+                return 'text-gray-600 bg-gray-50';
             };
 
             const getStatusIcon = (status) => {
@@ -147,257 +145,18 @@
             };
 
             const calculateOverallScore = (report) => {
-                if (!report) return 0;
-                
-                // Try metrics_snapshot first
-                if (report.metrics_snapshot?.risk_counts) {
-                    const { pass, needs_attention, fail } = report.metrics_snapshot.risk_counts;
-                    const total = pass + needs_attention + fail;
-                    return total > 0 ? Math.round((pass / total) * 100) : 0;
-                }
-                
-                // Fallback to category_summary
-                if (report.category_summary) {
-                    const categories = Object.values(report.category_summary);
-                    const total = categories.reduce((sum, cat) => sum + (cat.pass || 0), 0);
-                    const failed = categories.reduce((sum, cat) => sum + (cat.fail || 0), 0);
-                    const attention = categories.reduce((sum, cat) => sum + (cat.needs_attention || 0), 0);
-                    const totalTests = total + failed + attention;
-                    return totalTests > 0 ? Math.round((total / totalTests) * 100) : 0;
-                }
-                
-                return 75; // Default
+                if (!report || !report.category_summary) return 0;
+                const categories = Object.values(report.category_summary);
+                const total = categories.reduce((sum, cat) => sum + (cat.pass || 0), 0);
+                const failed = categories.reduce((sum, cat) => sum + (cat.fail || 0), 0);
+                const attention = categories.reduce((sum, cat) => sum + (cat.needs_attention || 0), 0);
+                const totalTests = total + failed + attention;
+                return totalTests > 0 ? Math.round((total / totalTests) * 100) : 0;
             };
 
             const formatDate = (dateString) => {
                 return new Date(dateString).toLocaleDateString();
             };
-
-            const ReportContent = ({ report, showDownload = true }) => (
-                <div className="space-y-6">
-                    {showDownload && (
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-2xl font-bold text-gray-900">AI Safety Compliance Report</h2>
-                                <button 
-                                    onClick={() => window.print()}
-                                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                                >
-                                    <FileText className="w-4 h-4" />
-                                    Download PDF
-                                </button>
-                            </div>
-                            <div className="text-sm text-gray-600">
-                                <p>Generated: {new Date().toLocaleString()}</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Summary Cards */}
-                    <div className="grid grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-lg shadow">
-                            <p className="text-sm text-gray-600 mb-2">Overall Score</p>
-                            <p className="text-4xl font-bold text-gray-900">{calculateOverallScore(report)}%</p>
-                        </div>
-                        <div className={`p-6 rounded-lg shadow border-2 ${getRiskColor(report.output?.risk_tier?.toLowerCase() || getRiskFromRecommendation(report.output?.recommendation))}`}>
-                            <p className="text-sm mb-2 font-medium">Risk Tier</p>
-                            <p className="text-2xl font-bold uppercase">{report.output?.risk_tier || getRiskFromRecommendation(report.output?.recommendation)}</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-lg shadow border-2 border-blue-200">
-                            <p className="text-sm text-gray-600 mb-2">Status</p>
-                            <p className="text-lg font-bold capitalize">{getStatusFromRecommendation(report.output?.recommendation || report.final_recommendation)}</p>
-                        </div>
-                    </div>
-
-                    {/* Executive Summary */}
-                    {report.output?.summary && (
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">Executive Summary</h3>
-                            <p className="text-gray-700 leading-relaxed">{report.output.summary}</p>
-                        </div>
-                    )}
-
-                    {/* Recommendation */}
-                    {report.output?.recommendation && (
-                        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
-                            <h3 className="text-lg font-bold text-blue-900 mb-2">Recommendation</h3>
-                            <p className="text-gray-700">{report.output.recommendation}</p>
-                        </div>
-                    )}
-
-                    {/* Category Radar */}
-                    {report.metrics_snapshot?.category_radar && (
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">Risk Analysis by Category</h3>
-                            <div className="grid grid-cols-2 gap-6">
-                                {Object.entries(report.metrics_snapshot.category_radar).map(([category, data]) => (
-                                    <div key={category} className="border rounded-lg p-4">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="font-bold text-gray-900">{category}</h4>
-                                            {data.assessed ? (
-                                                <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">Assessed</span>
-                                            ) : (
-                                                <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">Not Assessed</span>
-                                            )}
-                                        </div>
-                                        {data.assessed ? (
-                                            <>
-                                                <div className="mb-3">
-                                                    <span className="text-sm text-gray-600">Avg Severity: </span>
-                                                    <span className="text-lg font-bold text-red-600">{data.avg_severity}/5</span>
-                                                </div>
-                                                <div className="flex gap-4 text-sm">
-                                                    <div className="flex items-center gap-1">
-                                                        <CheckCircle className="w-4 h-4 text-green-600" />
-                                                        <span>{data.pass} Pass</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                                                        <span>{data.needs_attention} Warning</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <XCircle className="w-4 h-4 text-red-600" />
-                                                        <span>{data.fail} Fail</span>
-                                                    </div>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <p className="text-sm text-gray-500">Category requires further assessment</p>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Top Risks */}
-                    {report.metrics_snapshot?.top_risks && report.metrics_snapshot.top_risks.length > 0 && (
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">Top Identified Risks</h3>
-                            <div className="space-y-3">
-                                {report.metrics_snapshot.top_risks.map((risk, idx) => (
-                                    <div key={idx} className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                                        <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                                        <div>
-                                            <p className="font-medium text-gray-900">{risk.replace(/_/g, ' ')}</p>
-                                            <p className="text-sm text-gray-600 mt-1">Priority #{idx + 1}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Policy Alignment */}
-                    {report.output?.policy_alignment && (
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">Policy Alignment Status</h3>
-                            
-                            {report.output.policy_alignment.aligned && report.output.policy_alignment.aligned.length > 0 && (
-                                <div className="mb-6">
-                                    <h4 className="font-bold text-green-700 mb-2 flex items-center gap-2">
-                                        <CheckCircle className="w-5 h-5" />
-                                        Aligned Policies
-                                    </h4>
-                                    <ul className="space-y-2">
-                                        {report.output.policy_alignment.aligned.map((policy, idx) => (
-                                            <li key={idx} className="text-sm text-gray-700 pl-4 border-l-2 border-green-500">
-                                                {policy}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-
-                            {report.output.policy_alignment.partially_aligned && report.output.policy_alignment.partially_aligned.length > 0 && (
-                                <div className="mb-6">
-                                    <h4 className="font-bold text-yellow-700 mb-2 flex items-center gap-2">
-                                        <AlertTriangle className="w-5 h-5" />
-                                        Partially Aligned Policies
-                                    </h4>
-                                    <ul className="space-y-2">
-                                        {report.output.policy_alignment.partially_aligned.map((policy, idx) => (
-                                            <li key={idx} className="text-sm text-gray-700 pl-4 border-l-2 border-yellow-500">
-                                                {policy}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-
-                            {report.output.policy_alignment.not_aligned && report.output.policy_alignment.not_aligned.length > 0 && (
-                                <div>
-                                    <h4 className="font-bold text-red-700 mb-2 flex items-center gap-2">
-                                        <XCircle className="w-5 h-5" />
-                                        Not Aligned Policies
-                                    </h4>
-                                    <ul className="space-y-2">
-                                        {report.output.policy_alignment.not_aligned.map((policy, idx) => (
-                                            <li key={idx} className="text-sm text-gray-700 pl-4 border-l-2 border-red-500">
-                                                {policy}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Policy Statistics */}
-                    {report.metrics_snapshot?.policy_stats && (
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">Policy Testing Statistics</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                {Object.entries(report.metrics_snapshot.policy_stats).map(([policy, stats]) => (
-                                    <div key={policy} className="border rounded-lg p-4">
-                                        <h4 className="font-bold text-gray-900 mb-2">{policy.replace(/_/g, ' ')}</h4>
-                                        {stats.assessed ? (
-                                            <div className="flex gap-4 text-sm">
-                                                <span className="text-green-600">✓ {stats.pass}</span>
-                                                <span className="text-yellow-600">⚠ {stats.needs_attention}</span>
-                                                <span className="text-red-600">✗ {stats.fail}</span>
-                                            </div>
-                                        ) : (
-                                            <span className="text-sm text-gray-500">Not assessed</span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Presentation Outline */}
-                    {report.output?.ppt_outline && report.output.ppt_outline.length > 0 && (
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">Presentation Outline</h3>
-                            <div className="space-y-4">
-                                {report.output.ppt_outline.map((slide, idx) => (
-                                    <div key={idx} className="border-l-4 border-blue-500 pl-4">
-                                        <h4 className="font-bold text-gray-900 mb-2">Slide {idx + 1}: {slide.title}</h4>
-                                        <ul className="list-disc list-inside space-y-1">
-                                            {slide.bullets.map((bullet, bidx) => (
-                                                <li key={bidx} className="text-sm text-gray-700">{bullet}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Raw JSON Toggle */}
-                    <div className="bg-white rounded-lg shadow p-6">
-                        <details>
-                            <summary className="font-bold text-gray-900 cursor-pointer hover:text-blue-600">
-                                View Raw JSON Data
-                            </summary>
-                            <pre className="mt-4 bg-gray-100 p-4 rounded text-xs overflow-auto max-h-96">
-                                {JSON.stringify(report, null, 2)}
-                            </pre>
-                        </details>
-                    </div>
-                </div>
-            );
 
             return (
                 <div className="min-h-screen bg-gray-50">
@@ -425,7 +184,8 @@
                                 {[
                                     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
                                     { id: 'test', label: 'Run Test', icon: Upload },
-                                    { id: 'reports', label: 'Reports', icon: FileText },
+                                    { id: 'results', label: 'Results', icon: Activity },
+                                    { id: 'reports', label: 'Report', icon: FileText },
                                     { id: 'settings', label: 'Settings', icon: Settings },
                                 ].map(tab => (
                                     <button
@@ -445,30 +205,421 @@
 
                     <div className="max-w-7xl mx-auto px-6 py-8">
                         {activeTab === 'dashboard' && (
-                            <div className={`flex gap-6 ${selectedTest ? 'h-[calc(100vh-200px)]' : ''}`}>
-                                {/* Left Side - Test History List */}
-                                <div className={`${selectedTest ? 'w-2/5' : 'w-full'} transition-all duration-300`}>
-                                    <div className="bg-white rounded-lg shadow h-full flex flex-col">
-                                        <div className="p-6 border-b">
-                                            <h2 className="text-xl font-bold text-gray-900">Test History</h2>
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-4 gap-6">
+                                    {[
+                                        { label: 'Total Tests', value: testHistory.length, icon: Activity, color: 'blue' },
+                                        { label: 'Passed', value: testHistory.filter(t => t.status === 'passed').length, icon: CheckCircle, color: 'green' },
+                                        { label: 'Warnings', value: testHistory.filter(t => t.status === 'warning').length, icon: AlertTriangle, color: 'yellow' },
+                                        { label: 'Failed', value: testHistory.filter(t => t.status === 'failed').length, icon: XCircle, color: 'red' },
+                                    ].map((stat, idx) => (
+                                        <div key={idx} className="bg-white p-6 rounded-lg shadow">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-gray-600 text-sm">{stat.label}</p>
+                                                    <p className={`text-3xl font-bold text-${stat.color}-600`}>{stat.value}</p>
+                                                </div>
+                                                <stat.icon className={`w-10 h-10 text-${stat.color}-600`} />
+                                            </div>
                                         </div>
-                                        {testHistory.length > 0 ? (
-                                            <div className="overflow-y-auto flex-1">
-                                                {testHistory.map(test => (
-                                                    <div 
-                                                        key={test.id}
-                                                        onClick={() => setSelectedTest(test)}
-                                                        className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${selectedTest?.id === test.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}`}
-                                                    >
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <p className="font-medium text-gray-900">{test.fileName}</p>
-                                                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                                    ))}
+                                </div>
+
+                                <div className="bg-white rounded-lg shadow">
+                                    <div className="p-6 border-b">
+                                        <h2 className="text-xl font-bold">Recent Evaluations</h2>
+                                    </div>
+                                    {testHistory.length > 0 ? (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead className="bg-gray-50">
+                                                    <tr>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Document</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Risk</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y">
+                                                    {testHistory.map(test => (
+                                                        <tr key={test.id} className="hover:bg-gray-50">
+                                                            <td className="px-6 py-4 font-medium">{test.fileName}</td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    {getStatusIcon(test.status)}
+                                                                    <span className="capitalize">{test.status}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${getRiskColor(test.risk)}`}>
+                                                                    {test.risk}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-16 bg-gray-200 rounded-full h-2">
+                                                                        <div className={`h-2 rounded-full ${test.score >= 85 ? 'bg-green-600' : test.score >= 70 ? 'bg-yellow-600' : 'bg-red-600'}`} style={{ width: `${test.score}%` }} />
+                                                                    </div>
+                                                                    <span className="text-sm font-medium">{test.score}%</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-sm text-gray-600">{formatDate(test.date)}</td>
+                                                            <td className="px-6 py-4">
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        setCurrentTestResult(test.result);
+                                                                        setActiveTab('results');
+                                                                    }}
+                                                                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                                                >
+                                                                    View
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div className="p-12 text-center">
+                                            <Activity className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                                            <p className="text-gray-500 mb-4">No tests yet</p>
+                                            <button onClick={() => setActiveTab('test')} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                                                Run First Test
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'test' && (
+                            <div className="space-y-6">
+                                <div className="bg-white rounded-lg shadow p-6">
+                                    <h2 className="text-xl font-bold mb-4">Upload Document</h2>
+                                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition">
+                                        <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                        {uploadedFile ? (
+                                            <div>
+                                                <p className="text-green-600 font-medium mb-2">✓ {uploadedFile.name}</p>
+                                                <button onClick={() => setUploadedFile(null)} className="text-sm text-blue-600">Remove</button>
+                                            </div>
+                                        ) : (
+                                            <label className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 cursor-pointer inline-block">
+                                                Select PDF
+                                                <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
+                                            </label>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-lg shadow p-6">
+                                    <h2 className="text-xl font-bold mb-4">Select Frameworks</h2>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {[
+                                            { id: 'eu_ai_act', label: 'EU AI Act' },
+                                            { id: 'us_nist', label: 'US NIST AI RMF' },
+                                            { id: 'iso', label: 'ISO/IEC Standards' },
+                                            { id: 'unesco', label: 'UNESCO AI Ethics' },
+                                            { id: 'oecd', label: 'OECD Principles' },
+                                            { id: 'ieee', label: 'IEEE 7000' },
+                                        ].map(policy => (
+                                            <label key={policy.id} className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer ${selectedPolicies[policy.id] ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+                                                <input type="checkbox" checked={selectedPolicies[policy.id] || false} onChange={(e) => setSelectedPolicies({...selectedPolicies, [policy.id]: e.target.checked})} className="w-5 h-5" />
+                                                <span className="font-medium">{policy.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <button onClick={runTest} disabled={testInProgress || !uploadedFile} className="w-full bg-blue-600 text-white py-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2">
+                                    {testInProgress ? <><Activity className="w-6 h-6 animate-spin" />Processing...</> : <><Shield className="w-6 h-6" />Run Test</>}
+                                </button>
+                            </div>
+                        )}
+
+                        {activeTab === 'results' && (
+                            <div className="space-y-6">
+                                {testInProgress ? (
+                                    <div className="bg-white rounded-lg shadow p-12 text-center">
+                                        <Activity className="w-16 h-16 text-blue-600 mx-auto mb-4 animate-spin" />
+                                        <h3 className="text-xl font-bold mb-2">Processing...</h3>
+                                    </div>
+                                ) : currentTestResult ? (
+                                    <>
+                                        <div className="grid grid-cols-3 gap-6">
+                                            <div className="bg-white p-6 rounded-lg shadow">
+                                                <p className="text-sm text-gray-600 mb-2">Score</p>
+                                                <p className="text-4xl font-bold">{calculateOverallScore(currentTestResult)}%</p>
+                                            </div>
+                                            <div className="bg-white p-6 rounded-lg shadow">
+                                                <p className="text-sm text-gray-600 mb-2">Recommendation</p>
+                                                <p className="text-lg font-bold capitalize">{currentTestResult.final_recommendation?.replace(/_/g, ' ')}</p>
+                                            </div>
+                                            <div className="bg-white p-6 rounded-lg shadow">
+                                                <p className="text-sm text-gray-600 mb-2">Model</p>
+                                                <p className="text-lg font-bold">{currentTestResult.model_summary?.name || currentTestResult.model_overview?.name || 'N/A'}</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => setActiveTab('reports')} className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+                                            View Detailed Report
+                                        </button>
+                                    </>
+                                ) : (
+                                    <div className="bg-white rounded-lg shadow p-12 text-center">
+                                        <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                                        <p className="text-gray-500">No results yet</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'reports' && (
+                            <div className="space-y-6">
+                                {currentTestResult ? (
+                                    <>
+                                        {/* Header with Download */}
+                                        <div className="bg-white rounded-lg shadow p-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h2 className="text-2xl font-bold text-gray-900">AI Safety Compliance Report</h2>
+                                                <button 
+                                                    onClick={() => {
+                                                        window.print();
+                                                    }}
+                                                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                                                >
+                                                    <FileText className="w-4 h-4" />
+                                                    Download PDF
+                                                </button>
+                                            </div>
+                                            <div className="text-sm text-gray-600">
+                                                <p>Generated: {new Date().toLocaleString()}</p>
+                                                <p>Model: {currentTestResult.output?.model_name || currentTestResult.model_summary?.name || currentTestResult.model_overview?.name || 'N/A'}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Executive Summary */}
+                                        {currentTestResult.output?.summary && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Executive Summary</h3>
+                                                <p className="text-gray-700 leading-relaxed">{currentTestResult.output.summary}</p>
+                                            </div>
+                                        )}
+
+                                        {/* Risk Tier & Recommendation */}
+                                        <div className="grid grid-cols-2 gap-6">
+                                            {currentTestResult.output?.risk_tier && (
+                                                <div className={`rounded-lg shadow p-6 border-2 ${getRiskColor(currentTestResult.output.risk_tier.toLowerCase())}`}>
+                                                    <h3 className="text-lg font-bold mb-2">Overall Risk Tier</h3>
+                                                    <p className="text-3xl font-bold uppercase">{currentTestResult.output.risk_tier}</p>
+                                                </div>
+                                            )}
+                                            {currentTestResult.output?.recommendation && (
+                                                <div className="bg-white rounded-lg shadow p-6 border-2 border-blue-200">
+                                                    <h3 className="text-lg font-bold mb-2">Recommendation</h3>
+                                                    <p className="text-gray-700">{currentTestResult.output.recommendation}</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Category Radar Analysis */}
+                                        {currentTestResult.metrics_snapshot?.category_radar && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Risk Analysis by Category</h3>
+                                                <div className="grid grid-cols-2 gap-6">
+                                                    {Object.entries(currentTestResult.metrics_snapshot.category_radar).map(([category, data]) => (
+                                                        <div key={category} className="border rounded-lg p-4">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <h4 className="font-bold text-gray-900">{category}</h4>
+                                                                {data.assessed ? (
+                                                                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">Assessed</span>
+                                                                ) : (
+                                                                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">Not Assessed</span>
+                                                                )}
+                                                            </div>
+                                                            {data.assessed ? (
+                                                                <>
+                                                                    <div className="mb-3">
+                                                                        <span className="text-sm text-gray-600">Avg Severity: </span>
+                                                                        <span className="text-lg font-bold text-red-600">{data.avg_severity}/5</span>
+                                                                    </div>
+                                                                    <div className="flex gap-4 text-sm">
+                                                                        <div className="flex items-center gap-1">
+                                                                            <CheckCircle className="w-4 h-4 text-green-600" />
+                                                                            <span>{data.pass} Pass</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                                                            <span>{data.needs_attention} Warning</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <XCircle className="w-4 h-4 text-red-600" />
+                                                                            <span>{data.fail} Fail</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <p className="text-sm text-gray-500">Category requires further assessment</p>
+                                                            )}
                                                         </div>
-                                                        <div className="flex items-center gap-3 text-sm">
-                                                            {getStatusIcon(test.status)}
-                                                            <span className={`px-2 py-1 rounded text-xs font-medium uppercase ${getRiskColor(test.risk)}`}>
-                                                                {test.risk}
-                                                            </span>
-                                                            <span className="text-gray-600">{test.score}%</span>
-                                                            <span className="text-gray-400 ml-auto">{formatDate(test.date)}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Top Risks */}
+                                        {currentTestResult.metrics_snapshot?.top_risks && currentTestResult.metrics_snapshot.top_risks.length > 0 && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Top Identified Risks</h3>
+                                                <div className="space-y-3">
+                                                    {currentTestResult.metrics_snapshot.top_risks.map((risk, idx) => (
+                                                        <div key={idx} className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                                            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                                            <div>
+                                                                <p className="font-medium text-gray-900">{risk.replace(/_/g, ' ')}</p>
+                                                                <p className="text-sm text-gray-600 mt-1">Priority #{idx + 1}</p>
+                                                            </div>
                                                         </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Policy Alignment */}
+                                        {currentTestResult.output?.policy_alignment && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Policy Alignment Status</h3>
+                                                
+                                                {currentTestResult.output.policy_alignment.aligned && currentTestResult.output.policy_alignment.aligned.length > 0 && (
+                                                    <div className="mb-6">
+                                                        <h4 className="font-bold text-green-700 mb-2 flex items-center gap-2">
+                                                            <CheckCircle className="w-5 h-5" />
+                                                            Aligned Policies
+                                                        </h4>
+                                                        <ul className="space-y-2">
+                                                            {currentTestResult.output.policy_alignment.aligned.map((policy, idx) => (
+                                                                <li key={idx} className="text-sm text-gray-700 pl-4 border-l-2 border-green-500">
+                                                                    {policy}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+
+                                                {currentTestResult.output.policy_alignment.partially_aligned && currentTestResult.output.policy_alignment.partially_aligned.length > 0 && (
+                                                    <div className="mb-6">
+                                                        <h4 className="font-bold text-yellow-700 mb-2 flex items-center gap-2">
+                                                            <AlertTriangle className="w-5 h-5" />
+                                                            Partially Aligned Policies
+                                                        </h4>
+                                                        <ul className="space-y-2">
+                                                            {currentTestResult.output.policy_alignment.partially_aligned.map((policy, idx) => (
+                                                                <li key={idx} className="text-sm text-gray-700 pl-4 border-l-2 border-yellow-500">
+                                                                    {policy}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+
+                                                {currentTestResult.output.policy_alignment.not_aligned && currentTestResult.output.policy_alignment.not_aligned.length > 0 && (
+                                                    <div>
+                                                        <h4 className="font-bold text-red-700 mb-2 flex items-center gap-2">
+                                                            <XCircle className="w-5 h-5" />
+                                                            Not Aligned Policies
+                                                        </h4>
+                                                        <ul className="space-y-2">
+                                                            {currentTestResult.output.policy_alignment.not_aligned.map((policy, idx) => (
+                                                                <li key={idx} className="text-sm text-gray-700 pl-4 border-l-2 border-red-500">
+                                                                    {policy}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Policy Statistics */}
+                                        {currentTestResult.metrics_snapshot?.policy_stats && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Policy Testing Statistics</h3>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    {Object.entries(currentTestResult.metrics_snapshot.policy_stats).map(([policy, stats]) => (
+                                                        <div key={policy} className="border rounded-lg p-4">
+                                                            <h4 className="font-bold text-gray-900 mb-2">{policy.replace(/_/g, ' ')}</h4>
+                                                            {stats.assessed ? (
+                                                                <div className="flex gap-4 text-sm">
+                                                                    <span className="text-green-600">✓ {stats.pass}</span>
+                                                                    <span className="text-yellow-600">⚠ {stats.needs_attention}</span>
+                                                                    <span className="text-red-600">✗ {stats.fail}</span>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-sm text-gray-500">Not assessed</span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Presentation Outline */}
+                                        {currentTestResult.output?.ppt_outline && currentTestResult.output.ppt_outline.length > 0 && (
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Presentation Outline</h3>
+                                                <div className="space-y-4">
+                                                    {currentTestResult.output.ppt_outline.map((slide, idx) => (
+                                                        <div key={idx} className="border-l-4 border-blue-500 pl-4">
+                                                            <h4 className="font-bold text-gray-900 mb-2">Slide {idx + 1}: {slide.title}</h4>
+                                                            <ul className="list-disc list-inside space-y-1">
+                                                                {slide.bullets.map((bullet, bidx) => (
+                                                                    <li key={bidx} className="text-sm text-gray-700">{bullet}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Raw JSON Toggle */}
+                                        <div className="bg-white rounded-lg shadow p-6">
+                                            <details>
+                                                <summary className="font-bold text-gray-900 cursor-pointer hover:text-blue-600">
+                                                    View Raw JSON Data
+                                                </summary>
+                                                <pre className="mt-4 bg-gray-100 p-4 rounded text-xs overflow-auto max-h-96">
+                                                    {JSON.stringify(currentTestResult, null, 2)}
+                                                </pre>
+                                            </details>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="bg-white rounded-lg shadow p-12 text-center">
+                                        <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                                        <p className="text-gray-500">No report available. Run a test first.</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'settings' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-xl font-bold mb-6">Settings</h2>
+                                <div>
+                                    <label className="block text-sm mb-1">Webhook URL</label>
+                                    <input type="text" value={WEBHOOK_URL} readOnly className="w-full px-3 py-2 border rounded bg-gray-50" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<AISafetyDashboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>
