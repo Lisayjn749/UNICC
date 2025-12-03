@@ -204,8 +204,56 @@
 
                     <div className="max-w-7xl mx-auto px-6 py-8">
                         {activeTab === 'dashboard' && (
-                            <div className="flex gap-6 h-[calc(100vh-220px)]">
-                                <div className={`${selectedTest ? 'w-2/5' : 'w-full'} transition-all`}>
+                            <div className="space-y-6">
+                                {/* Stats Overview */}
+                                <div className="grid grid-cols-4 gap-6">
+                                    <div className="bg-white p-6 rounded-lg shadow">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-gray-600 text-sm">Total Tests</p>
+                                                <p className="text-3xl font-bold text-gray-900">{testHistory.length}</p>
+                                            </div>
+                                            <Activity className="w-10 h-10 text-blue-600" />
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-6 rounded-lg shadow">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-gray-600 text-sm">Passed</p>
+                                                <p className="text-3xl font-bold text-green-600">
+                                                    {testHistory.filter(t => t.status === 'passed').length}
+                                                </p>
+                                            </div>
+                                            <CheckCircle className="w-10 h-10 text-green-600" />
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-6 rounded-lg shadow">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-gray-600 text-sm">Warnings</p>
+                                                <p className="text-3xl font-bold text-yellow-600">
+                                                    {testHistory.filter(t => t.status === 'warning').length}
+                                                </p>
+                                            </div>
+                                            <AlertTriangle className="w-10 h-10 text-yellow-600" />
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-6 rounded-lg shadow">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-gray-600 text-sm">Failed</p>
+                                                <p className="text-3xl font-bold text-red-600">
+                                                    {testHistory.filter(t => t.status === 'failed').length}
+                                                </p>
+                                            </div>
+                                            <XCircle className="w-10 h-10 text-red-600" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Test History with Side-by-Side View */}
+                                <div className="flex gap-6 h-[calc(100vh-400px)]">
+                                    <div className={`${selectedTest ? 'w-2/5' : 'w-full'} transition-all`}>
                                     <div className="bg-white rounded-lg shadow h-full flex flex-col">
                                         <div className="p-6 border-b">
                                             <h2 className="text-xl font-bold">Test History</h2>
