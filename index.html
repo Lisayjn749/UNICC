@@ -89,6 +89,53 @@
                 return <Activity className="w-5 h-5 text-gray-600" />;
             };
 
+            const ReportSummary = ({ report, onViewFull }) => (
+                <div className="space-y-6">
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h2 className="text-xl font-bold text-gray-900 mb-6">Test Summary</h2>
+                        
+                        <div className="grid grid-cols-3 gap-4 mb-6">
+                            <div className="bg-white p-4 rounded-lg border-2">
+                                <p className="text-sm text-gray-600 mb-1">Overall Score</p>
+                                <p className="text-3xl font-bold">75%</p>
+                            </div>
+                            <div className={`p-4 rounded-lg border-2 ${getRiskColor(report.output?.risk_tier)}`}>
+                                <p className="text-sm mb-1 font-medium">Risk Tier</p>
+                                <p className="text-2xl font-bold uppercase">{report.output?.risk_tier || 'Medium'}</p>
+                            </div>
+                            <div className="bg-white p-4 rounded-lg border-2">
+                                <p className="text-sm text-gray-600 mb-1">Status</p>
+                                <p className="text-lg font-bold">Passed</p>
+                            </div>
+                        </div>
+
+                        {report.output?.summary && (
+                            <div className="mb-6">
+                                <h3 className="font-bold text-gray-900 mb-2">Executive Summary</h3>
+                                <p className="text-gray-700 text-sm leading-relaxed line-clamp-3">
+                                    {report.output.summary}
+                                </p>
+                            </div>
+                        )}
+
+                        {report.output?.recommendation && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                                <h3 className="font-bold text-blue-900 mb-2">Recommendation</h3>
+                                <p className="text-gray-700 text-sm line-clamp-2">{report.output.recommendation}</p>
+                            </div>
+                        )}
+
+                        <button 
+                            onClick={onViewFull}
+                            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center gap-2"
+                        >
+                            <FileText className="w-5 h-5" />
+                            View Full Report
+                        </button>
+                    </div>
+                </div>
+            );
+
             const ReportView = ({ report }) => (
                 <div className="space-y-6">
                     <div className="grid grid-cols-3 gap-4">
@@ -434,7 +481,7 @@
                                                                             {new Date(test.date).toLocaleDateString()}
                                                                         </td>
                                                                         <td className="px-6 py-4">
-                                                                            <div className="flex items-center gap-2">
+                                                                            <div className="flex items-center gap-4">
                                                                                 <button 
                                                                                     onClick={() => setSelectedTest(test)}
                                                                                     className="text-blue-600 hover:text-blue-800 text-sm font-medium"
@@ -450,7 +497,7 @@
                                                                                             if (selectedTest?.id === test.id) setSelectedTest(null);
                                                                                         }
                                                                                     }}
-                                                                                    className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                                                                    className="text-gray-500 hover:text-gray-700 text-sm font-medium"
                                                                                 >
                                                                                     Delete
                                                                                 </button>
@@ -476,7 +523,13 @@
 
                                     {selectedTest && (
                                         <div className="w-3/5 overflow-y-auto">
-                                            <ReportView report={selectedTest.result} />
+                                            <ReportSummary 
+                                                report={selectedTest.result} 
+                                                onViewFull={() => {
+                                                    setCurrentTestResult(selectedTest.result);
+                                                    setActiveTab('reports');
+                                                }}
+                                            />
                                         </div>
                                     )}
                                 </div>
