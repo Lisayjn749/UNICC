@@ -37,6 +37,7 @@
             const [selectedPolicies, setSelectedPolicies] = useState({
                 eu_ai_act: true, us_nist: true, iso: true, unesco: true, oecd: false, ieee: false
             });
+            const [reportsView, setReportsView] = useState('list'); // 'list' or 'detail'
 
             const WEBHOOK_URL = 'https://jiakainiu.app.n8n.cloud/webhook/30146b5a-8c33-4003-9c6d-44114badce13';
 
@@ -51,14 +52,44 @@
 
             const smartSummarize = (text, maxSentences = 2) => {
                 if (!text) return '';
-                const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-                return sentences.slice(0, maxSentences).join(' ').trim();
+                
+                // Clean up the text
+                const cleanText = text.trim();
+                if (!cleanText) return '';
+                
+                // Split into sentences more intelligently
+                const sentences = cleanText.match(/[^.!?]+[.!?]+[\s]*/g) || [cleanText];
+                
+                if (sentences.length <= maxSentences) {
+                    return cleanText;
+                }
+                
+                // Get key sentences based on length and position
+                const scoredSentences = sentences.map((sentence, idx) => {
+                    const words = sentence.trim().split(/\s+/).length;
+                    const positionScore = idx === 0 ? 2 : (idx === sentences.length - 1 ? 1.5 : 1);
+                    const lengthScore = Math.min(words / 10, 2); // Prefer sentences with 10+ words
+                    return {
+                        text: sentence.trim(),
+                        score: positionScore * lengthScore,
+                        index: idx
+                    };
+                });
+                
+                // Sort by score and take top sentences, then re-sort by original order
+                const topSentences = scoredSentences
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, maxSentences)
+                    .sort((a, b) => a.index - b.index);
+                
+                return topSentences.map(s => s.text).join(' ') + (sentences.length > maxSentences ? '...' : '');
             };
 
             const runTest = async () => {
                 if (!uploadedFile) { alert('Please upload PDF first'); return; }
                 setTestInProgress(true);
                 setActiveTab('reports');
+                setReportsView('list'); // Show list first while processing
                 try {
                     const formData = new FormData();
                     formData.append('file', uploadedFile);
@@ -75,9 +106,12 @@
                     setCurrentTestResult(result);
                     setViewingReportId(testRecord.id);
                     setTestInProgress(false);
+                    // Automatically navigate to detail view
+                    setReportsView('detail');
                     alert('Test completed!');
                 } catch (error) {
                     setTestInProgress(false);
+                    setReportsView('list');
                     alert('Error: ' + error.message);
                 }
             };
@@ -117,19 +151,21 @@
                             </div>
                         </div>
 
-                        {report.output?.summary && (
+                        {(report.output?.summary || report.output?.executive_summary) && (
                             <div className="mb-6">
                                 <h3 className="font-bold text-gray-900 mb-2">Executive Summary</h3>
-                                <p className="text-gray-700 text-sm leading-relaxed line-clamp-3">
-                                    {report.output.summary}
+                                <p className="text-gray-700 text-sm leading-relaxed">
+                                    {smartSummarize(report.output.summary || report.output.executive_summary, 3)}
                                 </p>
                             </div>
                         )}
 
-                        {report.output?.recommendation && (
+                        {(report.output?.recommendation || report.output?.recommendations) && (
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                                <h3 className="font-bold text-blue-900 mb-2">Recommendation</h3>
-                                <p className="text-gray-700 text-sm line-clamp-2">{report.output.recommendation}</p>
+                                <h3 className="font-bold text-blue-900 mb-2">Recommendations</h3>
+                                <p className="text-gray-700 text-sm">
+                                    {smartSummarize(report.output.recommendation || report.output.recommendations, 3)}
+                                </p>
                             </div>
                         )}
 
@@ -536,6 +572,7 @@
                                                 onViewFull={() => {
                                                     setCurrentTestResult(selectedTest.result);
                                                     setActiveTab('reports');
+                                                    setReportsView('detail');
                                                 }}
                                             />
                                         </div>
@@ -596,26 +633,88 @@
                                         <Activity className="w-16 h-16 text-blue-600 mx-auto mb-4 animate-spin" />
                                         <h3 className="text-xl font-bold mb-2">Processing...</h3>
                                     </div>
-                                ) : currentTestResult ? (
+                                ) : reportsView === 'list' ? (
                                     <div className="space-y-6">
-                                        <div className="bg-white rounded-lg shadow p-6 flex items-center justify-between">
-                                            <h2 className="text-2xl font-bold">AI Safety Compliance Report</h2>
-                                            <button onClick={() => window.print()} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                                                <FileText className="w-4 h-4" />
-                                                Download PDF
-                                            </button>
+                                        <div className="bg-white rounded-lg shadow p-6">
+                                            <h2 className="text-2xl font-bold mb-6">All Reports</h2>
+                                            {testHistory.length === 0 ? (
+                                                <div className="text-center py-12">
+                                                    <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                                                    <p className="text-gray-500 mb-4">No reports available</p>
+                                                    <button onClick={() => setActiveTab('test')} className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
+                                                        Run a Test
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    {testHistory.map(test => (
+                                                        <div 
+                                                            key={test.id} 
+                                                            onClick={() => {
+                                                                setCurrentTestResult(test.result);
+                                                                setViewingReportId(test.id);
+                                                                setReportsView('detail');
+                                                            }}
+                                                            className="border rounded-lg p-6 hover:shadow-lg transition-all cursor-pointer hover:border-blue-300"
+                                                        >
+                                                            <div className="flex items-start justify-between mb-4">
+                                                                <div className="flex-1">
+                                                                    <h3 className="text-lg font-bold text-gray-900 mb-2">{test.fileName}</h3>
+                                                                    <p className="text-sm text-gray-500">
+                                                                        {new Date(test.date).toLocaleString('en-US', { 
+                                                                            year: 'numeric', 
+                                                                            month: 'long', 
+                                                                            day: 'numeric',
+                                                                            hour: '2-digit',
+                                                                            minute: '2-digit'
+                                                                        })}
+                                                                    </p>
+                                                                </div>
+                                                                <ChevronRight className="w-6 h-6 text-gray-400" />
+                                                            </div>
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    {getStatusIcon(test.status)}
+                                                                    <span className="text-sm font-medium capitalize">{test.status}</span>
+                                                                </div>
+                                                                <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getRiskColor(test.risk)}`}>
+                                                                    {test.risk?.toUpperCase() || 'UNKNOWN'} RISK
+                                                                </div>
+                                                                <div className="text-sm text-gray-600">
+                                                                    Score: <span className="font-bold">{test.score}%</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : reportsView === 'detail' && currentTestResult ? (
+                                    <div className="space-y-6">
+                                        <div className="bg-white rounded-lg shadow p-6">
+                                            <div className="flex items-center justify-between mb-6">
+                                                <div className="flex items-center gap-4">
+                                                    <button 
+                                                        onClick={() => setReportsView('list')} 
+                                                        className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                                        </svg>
+                                                        Back to Reports
+                                                    </button>
+                                                    <h2 className="text-2xl font-bold">AI Safety Compliance Report</h2>
+                                                </div>
+                                                <button onClick={() => window.print()} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                                                    <FileText className="w-4 h-4" />
+                                                    Download PDF
+                                                </button>
+                                            </div>
                                         </div>
                                         <ReportView report={currentTestResult} />
                                     </div>
-                                ) : (
-                                    <div className="bg-white rounded-lg shadow p-12 text-center">
-                                        <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                        <p className="text-gray-500 mb-4">No report available</p>
-                                        <button onClick={() => setActiveTab('test')} className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
-                                            Run a Test
-                                        </button>
-                                    </div>
-                                )}
+                                ) : null}
                             </div>
                         )}
 
