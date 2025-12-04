@@ -32,6 +32,7 @@
             const [currentTestResult, setCurrentTestResult] = useState(null);
             const [testHistory, setTestHistory] = useState([]);
             const [selectedTest, setSelectedTest] = useState(null);
+            const [viewingReportId, setViewingReportId] = useState(null);
             const [uploadedFile, setUploadedFile] = useState(null);
             const [selectedPolicies, setSelectedPolicies] = useState({
                 eu_ai_act: true, us_nist: true, iso: true, unesco: true, oecd: false, ieee: false
@@ -47,6 +48,12 @@
             useEffect(() => {
                 if (testHistory.length > 0) localStorage.setItem('unicc_test_history', JSON.stringify(testHistory));
             }, [testHistory]);
+
+            const smartSummarize = (text, maxSentences = 2) => {
+                if (!text) return '';
+                const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+                return sentences.slice(0, maxSentences).join(' ').trim();
+            };
 
             const runTest = async () => {
                 if (!uploadedFile) { alert('Please upload PDF first'); return; }
@@ -66,6 +73,7 @@
                     };
                     setTestHistory([testRecord, ...testHistory]);
                     setCurrentTestResult(result);
+                    setViewingReportId(testRecord.id);
                     setTestInProgress(false);
                     alert('Test completed!');
                 } catch (error) {
