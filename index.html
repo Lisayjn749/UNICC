@@ -133,11 +133,17 @@
                                             </span>
                                         </div>
                                         {data.assessed && (
-                                            <div className="flex gap-3 text-xs">
-                                                <span className="text-green-600">✓ {data.pass}</span>
-                                                <span className="text-yellow-600">⚠ {data.needs_attention}</span>
-                                                <span className="text-red-600">✗ {data.fail}</span>
-                                            </div>
+                                            <>
+                                                <div className="mb-2">
+                                                    <span className="text-xs text-gray-600">Avg Severity: </span>
+                                                    <span className="text-sm font-bold text-red-600">{data.avg_severity}/5</span>
+                                                </div>
+                                                <div className="flex gap-3 text-xs">
+                                                    <span className="text-green-600">✓ {data.pass}</span>
+                                                    <span className="text-yellow-600">⚠ {data.needs_attention}</span>
+                                                    <span className="text-red-600">✗ {data.fail}</span>
+                                                </div>
+                                            </>
                                         )}
                                     </div>
                                 ))}
@@ -145,19 +151,127 @@
                         </div>
                     )}
 
-                    {report.metrics_snapshot?.top_risks && (
+                    {report.metrics_snapshot?.top_risks && report.metrics_snapshot.top_risks.length > 0 && (
                         <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-lg font-bold mb-3">Top Risks</h3>
+                            <h3 className="text-lg font-bold mb-3">Top Identified Risks</h3>
                             <div className="space-y-2">
                                 {report.metrics_snapshot.top_risks.map((risk, i) => (
                                     <div key={i} className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded">
                                         <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5" />
-                                        <span className="text-sm">{risk.replace(/_/g, ' ')}</span>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-medium">{risk.replace(/_/g, ' ')}</p>
+                                            <p className="text-xs text-gray-600 mt-1">Priority #{i + 1}</p>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
                     )}
+
+                    {report.output?.policy_alignment && (
+                        <div className="bg-white rounded-lg shadow p-6">
+                            <h3 className="text-lg font-bold mb-4">Policy Alignment Status</h3>
+                            
+                            {report.output.policy_alignment.aligned && report.output.policy_alignment.aligned.length > 0 && (
+                                <div className="mb-4">
+                                    <h4 className="font-bold text-green-700 mb-2 flex items-center gap-2 text-sm">
+                                        <CheckCircle className="w-4 h-4" />
+                                        Aligned Policies
+                                    </h4>
+                                    <ul className="space-y-2">
+                                        {report.output.policy_alignment.aligned.map((policy, idx) => (
+                                            <li key={idx} className="text-xs text-gray-700 pl-3 border-l-2 border-green-500 py-1">
+                                                {policy}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {report.output.policy_alignment.partially_aligned && report.output.policy_alignment.partially_aligned.length > 0 && (
+                                <div className="mb-4">
+                                    <h4 className="font-bold text-yellow-700 mb-2 flex items-center gap-2 text-sm">
+                                        <AlertTriangle className="w-4 h-4" />
+                                        Partially Aligned Policies
+                                    </h4>
+                                    <ul className="space-y-2">
+                                        {report.output.policy_alignment.partially_aligned.map((policy, idx) => (
+                                            <li key={idx} className="text-xs text-gray-700 pl-3 border-l-2 border-yellow-500 py-1">
+                                                {policy}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {report.output.policy_alignment.not_aligned && report.output.policy_alignment.not_aligned.length > 0 && (
+                                <div>
+                                    <h4 className="font-bold text-red-700 mb-2 flex items-center gap-2 text-sm">
+                                        <XCircle className="w-4 h-4" />
+                                        Not Aligned Policies
+                                    </h4>
+                                    <ul className="space-y-2">
+                                        {report.output.policy_alignment.not_aligned.map((policy, idx) => (
+                                            <li key={idx} className="text-xs text-gray-700 pl-3 border-l-2 border-red-500 py-1">
+                                                {policy}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {report.metrics_snapshot?.policy_stats && (
+                        <div className="bg-white rounded-lg shadow p-6">
+                            <h3 className="text-lg font-bold mb-4">Policy Testing Statistics</h3>
+                            <div className="grid grid-cols-2 gap-3">
+                                {Object.entries(report.metrics_snapshot.policy_stats).map(([policy, stats]) => (
+                                    <div key={policy} className="border rounded p-3">
+                                        <h4 className="font-bold text-sm text-gray-900 mb-2">{policy.replace(/_/g, ' ')}</h4>
+                                        {stats.assessed ? (
+                                            <div className="flex gap-3 text-xs">
+                                                <span className="text-green-600">✓ {stats.pass}</span>
+                                                <span className="text-yellow-600">⚠ {stats.needs_attention}</span>
+                                                <span className="text-red-600">✗ {stats.fail}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-gray-500">Not assessed</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {report.output?.ppt_outline && report.output.ppt_outline.length > 0 && (
+                        <div className="bg-white rounded-lg shadow p-6">
+                            <h3 className="text-lg font-bold mb-4">Presentation Outline</h3>
+                            <div className="space-y-3">
+                                {report.output.ppt_outline.map((slide, idx) => (
+                                    <div key={idx} className="border-l-4 border-blue-500 pl-3 py-2">
+                                        <h4 className="font-bold text-sm text-gray-900 mb-1">Slide {idx + 1}: {slide.title}</h4>
+                                        <ul className="list-disc list-inside space-y-1">
+                                            {slide.bullets.map((bullet, bidx) => (
+                                                <li key={bidx} className="text-xs text-gray-700">{bullet}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="bg-white rounded-lg shadow p-4">
+                        <details>
+                            <summary className="font-bold text-sm text-gray-900 cursor-pointer hover:text-blue-600">
+                                View Raw JSON Data
+                            </summary>
+                            <pre className="mt-3 bg-gray-100 p-3 rounded text-xs overflow-auto max-h-96">
+                                {JSON.stringify(report, null, 2)}
+                            </pre>
+                        </details>
+                    </div>
                 </div>
             );
 
@@ -320,12 +434,27 @@
                                                                             {new Date(test.date).toLocaleDateString()}
                                                                         </td>
                                                                         <td className="px-6 py-4">
-                                                                            <button 
-                                                                                onClick={() => setSelectedTest(test)}
-                                                                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                                                                            >
-                                                                                View Details
-                                                                            </button>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <button 
+                                                                                    onClick={() => setSelectedTest(test)}
+                                                                                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                                                                >
+                                                                                    View Details
+                                                                                </button>
+                                                                                <button 
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        if (confirm('Delete this test? This cannot be undone.')) {
+                                                                                            const newHistory = testHistory.filter(t => t.id !== test.id);
+                                                                                            setTestHistory(newHistory);
+                                                                                            if (selectedTest?.id === test.id) setSelectedTest(null);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                                                                >
+                                                                                    Delete
+                                                                                </button>
+                                                                            </div>
                                                                         </td>
                                                                     </tr>
                                                                 ))}
