@@ -250,29 +250,89 @@
                                     </div>
                                 </div>
 
-                                <div className="flex gap-6 h-[calc(100vh-400px)]">
+                                <div className={selectedTest ? 'flex gap-6 h-[calc(100vh-400px)]' : ''}>
                                     <div className={`${selectedTest ? 'w-2/5' : 'w-full'} transition-all`}>
                                         <div className="bg-white rounded-lg shadow h-full flex flex-col">
                                             <div className="p-6 border-b">
                                                 <h2 className="text-xl font-bold">Test History</h2>
                                             </div>
                                             {testHistory.length > 0 ? (
-                                                <div className="overflow-y-auto flex-1">
-                                                    {testHistory.map(test => (
-                                                        <div key={test.id} onClick={() => setSelectedTest(test)}
-                                                            className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${selectedTest?.id === test.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}`}>
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <p className="font-medium text-sm">{test.fileName}</p>
-                                                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                                                selectedTest ? (
+                                                    <div className="overflow-y-auto flex-1">
+                                                        {testHistory.map(test => (
+                                                            <div key={test.id} 
+                                                                onClick={() => setSelectedTest(selectedTest?.id === test.id ? null : test)}
+                                                                className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${selectedTest?.id === test.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}`}>
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <p className="font-medium text-sm">{test.fileName}</p>
+                                                                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                                                                </div>
+                                                                <div className="flex items-center gap-3 text-xs">
+                                                                    {getStatusIcon(test.status)}
+                                                                    <span className={`px-2 py-1 rounded uppercase ${getRiskColor(test.risk)}`}>{test.risk}</span>
+                                                                    <span className="text-gray-600">{test.score}%</span>
+                                                                </div>
                                                             </div>
-                                                            <div className="flex items-center gap-3 text-xs">
-                                                                {getStatusIcon(test.status)}
-                                                                <span className={`px-2 py-1 rounded uppercase ${getRiskColor(test.risk)}`}>{test.risk}</span>
-                                                                <span className="text-gray-600">{test.score}%</span>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full">
+                                                            <thead className="bg-gray-50">
+                                                                <tr>
+                                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Document</th>
+                                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Risk Tier</th>
+                                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
+                                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-gray-200">
+                                                                {testHistory.map(test => (
+                                                                    <tr key={test.id} className="hover:bg-gray-50">
+                                                                        <td className="px-6 py-4">
+                                                                            <div className="font-medium text-gray-900">{test.fileName}</div>
+                                                                        </td>
+                                                                        <td className="px-6 py-4">
+                                                                            <div className="flex items-center gap-2">
+                                                                                {getStatusIcon(test.status)}
+                                                                                <span className="capitalize">{test.status}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="px-6 py-4">
+                                                                            <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${getRiskColor(test.risk)}`}>
+                                                                                {test.risk}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-6 py-4">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className="w-16 bg-gray-200 rounded-full h-2">
+                                                                                    <div 
+                                                                                        className={`h-2 rounded-full ${test.score >= 85 ? 'bg-green-600' : test.score >= 70 ? 'bg-yellow-600' : 'bg-red-600'}`}
+                                                                                        style={{ width: `${test.score}%` }}
+                                                                                    />
+                                                                                </div>
+                                                                                <span className="text-sm font-medium">{test.score}%</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="px-6 py-4 text-sm text-gray-600">
+                                                                            {new Date(test.date).toLocaleDateString()}
+                                                                        </td>
+                                                                        <td className="px-6 py-4">
+                                                                            <button 
+                                                                                onClick={() => setSelectedTest(test)}
+                                                                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                                                            >
+                                                                                View Details
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                )
                                             ) : (
                                                 <div className="flex-1 flex flex-col items-center justify-center p-12">
                                                     <Activity className="w-16 h-16 text-gray-400 mb-4" />
