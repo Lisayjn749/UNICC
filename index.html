@@ -146,19 +146,21 @@
                             </div>
                         </div>
 
-                        {report.output?.summary && (
+                        {(report.output?.summary || report.output?.executive_summary) && (
                             <div className="mb-6">
                                 <h3 className="font-bold text-gray-900 mb-2">Executive Summary</h3>
-                                <p className="text-gray-700 text-sm leading-relaxed line-clamp-3">
-                                    {report.output.summary}
+                                <p className="text-gray-700 text-sm leading-relaxed">
+                                    {smartSummarize(report.output.summary || report.output.executive_summary, 3)}
                                 </p>
                             </div>
                         )}
 
-                        {report.output?.recommendation && (
+                        {(report.output?.recommendation || report.output?.recommendations) && (
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                                <h3 className="font-bold text-blue-900 mb-2">Recommendation</h3>
-                                <p className="text-gray-700 text-sm line-clamp-2">{report.output.recommendation}</p>
+                                <h3 className="font-bold text-blue-900 mb-2">Recommendations</h3>
+                                <p className="text-gray-700 text-sm">
+                                    {smartSummarize(report.output.recommendation || report.output.recommendations, 3)}
+                                </p>
                             </div>
                         )}
 
@@ -190,17 +192,21 @@
                         </div>
                     </div>
 
-                    {report.output?.summary && (
+                    {(report.output?.summary || report.output?.executive_summary) && (
                         <div className="bg-white rounded-lg shadow p-6">
                             <h3 className="text-lg font-bold mb-3">Executive Summary</h3>
-                            <p className="text-gray-700 text-sm leading-relaxed">{report.output.summary}</p>
+                            <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
+                                {report.output.summary || report.output.executive_summary}
+                            </p>
                         </div>
                     )}
 
-                    {report.output?.recommendation && (
+                    {(report.output?.recommendation || report.output?.recommendations) && (
                         <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-                            <h3 className="font-bold text-blue-900 mb-2">Recommendation</h3>
-                            <p className="text-gray-700 text-sm">{report.output.recommendation}</p>
+                            <h3 className="font-bold text-blue-900 mb-2">Recommendations</h3>
+                            <p className="text-gray-700 text-sm whitespace-pre-wrap">
+                                {report.output.recommendation || report.output.recommendations}
+                            </p>
                         </div>
                     )}
 
