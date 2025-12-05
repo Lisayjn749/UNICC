@@ -38,6 +38,7 @@
                 eu_ai_act: true, us_nist: true, iso: true, unesco: true, oecd: false, ieee: false
             });
             const [reportsView, setReportsView] = useState('list');
+            const [selectedAgent, setSelectedAgent] = useState('news_xenophobia');
 
             const WEBHOOK_URL = 'https://jiakainiu.app.n8n.cloud/webhook/30146b5a-8c33-4003-9c6d-44114badce13';
 
@@ -837,18 +838,6 @@
                                 </div>
                             </div>
                         )}
-
-                        {/* View Raw JSON Data */}
-                        <div className="bg-white rounded-lg shadow p-4">
-                            <details>
-                                <summary className="font-bold text-sm text-gray-900 cursor-pointer hover:text-blue-600">
-                                    🔍 View Raw JSON Data
-                                </summary>
-                                <pre className="mt-3 bg-gray-100 p-3 rounded text-xs overflow-auto max-h-96">
-                                    {JSON.stringify(report, null, 2)}
-                                </pre>
-                            </details>
-                        </div>
                     </div>
                 );
             };
@@ -1070,6 +1059,35 @@
 
                         {activeTab === 'test' && (
                             <div className="space-y-6">
+                                {/* Agent Selection */}
+                                <div className="bg-white rounded-lg shadow p-6">
+                                    <h2 className="text-xl font-bold mb-4">Select AI Agent to Test</h2>
+                                    <div className="relative">
+                                        <select 
+                                            value={selectedAgent}
+                                            onChange={(e) => setSelectedAgent(e.target.value)}
+                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none appearance-none bg-white text-gray-900 font-medium cursor-pointer"
+                                        >
+                                            <option value="news_xenophobia">News Xenophobia Analysis Tool</option>
+                                            <option value="mirror">MIRROR</option>
+                                            <option value="verimedia">VeriMedia</option>
+                                            <option value="content_moderation">Content Moderation AI</option>
+                                            <option value="sentiment_analyzer">Sentiment Analyzer</option>
+                                            <option value="fact_checker">AI Fact Checker</option>
+                                            <option value="custom">Custom Agent</option>
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-700">
+                                            <svg className="fill-current h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-gray-500 mt-2">
+                                        Select which AI agent you want to test for safety compliance
+                                    </p>
+                                </div>
+
+                                {/* Upload Document */}
                                 <div className="bg-white rounded-lg shadow p-6">
                                     <h2 className="text-xl font-bold mb-4">Upload Document</h2>
                                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
@@ -1088,6 +1106,7 @@
                                     </div>
                                 </div>
 
+                                {/* Select Frameworks */}
                                 <div className="bg-white rounded-lg shadow p-6">
                                     <h2 className="text-xl font-bold mb-4">Select Frameworks</h2>
                                     <div className="grid grid-cols-2 gap-4">
