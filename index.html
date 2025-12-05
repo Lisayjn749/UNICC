@@ -226,7 +226,8 @@
                         result: result, 
                         score: actualScore, 
                         status: status, 
-                        risk: riskTier.toLowerCase()
+                        risk: riskTier.toLowerCase(),
+                        file: uploadedFile  // Store the file for download
                     };
                     setTestHistory([testRecord, ...testHistory]);
                     setCurrentTestResult(result);
@@ -945,7 +946,7 @@
                                                                 onClick={() => setSelectedTest(selectedTest?.id === test.id ? null : test)}
                                                                 className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${selectedTest?.id === test.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}`}>
                                                                 <div className="flex items-center justify-between mb-2">
-                                                                    <p className="font-medium text-sm">{test.fileName}</p>
+                                                                    <p className="font-medium text-sm">{test.fileName.replace(/\.pdf$/i, '')}</p>
                                                                     <ChevronRight className="w-4 h-4 text-gray-400" />
                                                                 </div>
                                                                 <div className="flex items-center gap-3 text-xs">
@@ -973,7 +974,7 @@
                                                                 {testHistory.map(test => (
                                                                     <tr key={test.id} className="hover:bg-gray-50">
                                                                         <td className="px-6 py-4">
-                                                                            <div className="font-medium text-gray-900">{test.fileName}</div>
+                                                                            <div className="font-medium text-gray-900">{test.fileName.replace(/\.pdf$/i, '')}</div>
                                                                         </td>
                                                                         <td className="px-6 py-4">
                                                                             <div className="flex items-center gap-2">
@@ -1165,7 +1166,7 @@
                                                         >
                                                             <div className="flex items-start justify-between mb-4">
                                                                 <div className="flex-1">
-                                                                    <h3 className="text-lg font-bold text-gray-900 mb-2">{test.fileName}</h3>
+                                                                    <h3 className="text-lg font-bold text-gray-900 mb-2">{test.fileName.replace(/\.pdf$/i, '')}</h3>
                                                                     <p className="text-sm text-gray-500">
                                                                         {new Date(test.date).toLocaleString('en-US', { 
                                                                             year: 'numeric', 
@@ -1210,12 +1211,38 @@
                                                         </svg>
                                                         Back to Reports
                                                     </button>
-                                                    <h2 className="text-2xl font-bold">AI Safety Compliance Report</h2>
+                                                    <h2 className="text-2xl font-bold">
+                                                        {testHistory.find(t => t.id === viewingReportId)?.fileName.replace(/\.pdf$/i, '') || 'AI Safety Compliance Report'}
+                                                    </h2>
                                                 </div>
-                                                <button onClick={() => window.print()} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                                                    <FileText className="w-4 h-4" />
-                                                    Download PDF
-                                                </button>
+                                                <div className="flex gap-3">
+                                                    {(() => {
+                                                        const currentTest = testHistory.find(t => t.id === viewingReportId);
+                                                        return currentTest?.file && (
+                                                            <button 
+                                                                onClick={() => {
+                                                                    const url = URL.createObjectURL(currentTest.file);
+                                                                    const a = document.createElement('a');
+                                                                    a.href = url;
+                                                                    a.download = currentTest.fileName;
+                                                                    a.click();
+                                                                    URL.revokeObjectURL(url);
+                                                                }}
+                                                                className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+                                                            >
+                                                                <Upload className="w-4 h-4" />
+                                                                Download Original PDF
+                                                            </button>
+                                                        );
+                                                    })()}
+                                                    <button 
+                                                        onClick={() => window.print()} 
+                                                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                                                    >
+                                                        <FileText className="w-4 h-4" />
+                                                        Download Report
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                         <ReportView report={currentTestResult} />
