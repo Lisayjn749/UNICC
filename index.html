@@ -81,6 +81,115 @@
                 return topSentences.map(s => s.text).join(' ') + '...';
             };
 
+            // Enhanced text formatting functions
+            const extractStats = (text) => {
+                if (!text) return [];
+                const stats = [];
+                
+                // Match patterns like "12 tests passed" or "6 requiring attention"
+                const patterns = [
+                    /(\d+)\s+(tests?\s+)?passed/gi,
+                    /(\d+)\s+(requiring|needs?)\s+attention/gi,
+                    /(\d+)\s+failed/gi,
+                    /(\d+)\s+tests?/gi,
+                    /average\s+severity\s+of\s+([\d.]+)/gi,
+                    /(\d+)%/g
+                ];
+                
+                patterns.forEach(pattern => {
+                    let match;
+                    while ((match = pattern.exec(text)) !== null) {
+                        const value = match[1];
+                        const context = match[0];
+                        if (context.toLowerCase().includes('passed')) {
+                            stats.push({ value, label: 'Passed', type: 'success' });
+                        } else if (context.toLowerCase().includes('attention')) {
+                            stats.push({ value, label: 'Need Attention', type: 'warning' });
+                        } else if (context.toLowerCase().includes('failed')) {
+                            stats.push({ value, label: 'Failed', type: 'danger' });
+                        } else if (context.toLowerCase().includes('severity')) {
+                            stats.push({ value, label: 'Avg Severity', type: 'info' });
+                        }
+                    }
+                });
+                
+                return stats.slice(0, 4); // Limit to 4 key stats
+            };
+
+            const detectSections = (text) => {
+                if (!text) return [{ content: text }];
+                
+                const sections = [];
+                const keywords = ['Overall', 'Specifically', 'Notably', 'The top risks', 'Since', 'Key', 'However', 'Additionally'];
+                
+                let currentSection = { header: null, content: '' };
+                const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+                
+                sentences.forEach((sentence, idx) => {
+                    const trimmed = sentence.trim();
+                    const startsWithKeyword = keywords.some(kw => trimmed.startsWith(kw));
+                    
+                    if (startsWithKeyword && currentSection.content) {
+                        sections.push({ ...currentSection });
+                        currentSection = { header: null, content: trimmed };
+                    } else {
+                        currentSection.content += (currentSection.content ? ' ' : '') + trimmed;
+                    }
+                });
+                
+                if (currentSection.content) {
+                    sections.push(currentSection);
+                }
+                
+                return sections.length > 0 ? sections : [{ content: text }];
+            };
+
+            const highlightKeyTerms = (text) => {
+                if (!text) return text;
+                
+                const terms = {
+                    'high risk': 'bg-red-100 text-red-800 px-1 rounded font-medium',
+                    'medium risk': 'bg-yellow-100 text-yellow-800 px-1 rounded font-medium',
+                    'low risk': 'bg-green-100 text-green-800 px-1 rounded font-medium',
+                    'moderate risk': 'bg-yellow-100 text-yellow-800 px-1 rounded font-medium',
+                    'Technical': 'text-blue-700 font-semibold',
+                    'Ethical': 'text-purple-700 font-semibold',
+                    'Legal': 'text-orange-700 font-semibold',
+                    'Societal': 'text-teal-700 font-semibold'
+                };
+                
+                let result = text;
+                Object.keys(terms).forEach(term => {
+                    const regex = new RegExp(`\\b${term}\\b`, 'gi');
+                    result = result.replace(regex, `<span class="${terms[term]}">${term}</span>`);
+                });
+                
+                return result;
+            };
+
+            const extractBulletPoints = (text) => {
+                if (!text) return [];
+                
+                // Look for sentences that might be action items or key points
+                const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+                const bulletPoints = [];
+                
+                const actionWords = ['should', 'must', 'need', 'require', 'recommend', 'include', 'ensure', 'implement', 'conduct', 'strengthen', 'address'];
+                
+                sentences.forEach(sentence => {
+                    const trimmed = sentence.trim();
+                    const hasActionWord = actionWords.some(word => 
+                        trimmed.toLowerCase().includes(word)
+                    );
+                    
+                    if (hasActionWord || trimmed.length > 50) {
+                        bulletPoints.push(trimmed);
+                    }
+                });
+                
+                return bulletPoints;
+            };
+
             const runTest = async () => {
                 if (!uploadedFile) { alert('Please upload PDF first'); return; }
                 setTestInProgress(true);
@@ -206,23 +315,109 @@
                             </div>
                         </div>
 
-                        {/* Executive Summary */}
+                        {/* Executive Summary - Enhanced */}
                         {(output.summary || output.executive_summary) && (
                             <div className="bg-white rounded-lg shadow p-6">
-                                <h3 className="text-lg font-bold mb-3">Executive Summary</h3>
-                                <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
-                                    {output.summary || output.executive_summary}
-                                </p>
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <span className="text-2xl">📋</span>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">Executive Summary</h3>
+                                </div>
+                                
+                                {(() => {
+                                    const summaryText = output.summary || output.executive_summary;
+                                    const stats = extractStats(summaryText);
+                                    const sections = detectSections(summaryText);
+                                    
+                                    return (
+                                        <>
+                                            {/* Key Statistics */}
+                                            {stats.length > 0 && (
+                                                <div className="grid grid-cols-4 gap-3 mb-6">
+                                                    {stats.map((stat, idx) => (
+                                                        <div key={idx} className={`p-3 rounded-lg border-2 text-center ${
+                                                            stat.type === 'success' ? 'bg-green-50 border-green-200' :
+                                                            stat.type === 'warning' ? 'bg-yellow-50 border-yellow-200' :
+                                                            stat.type === 'danger' ? 'bg-red-50 border-red-200' :
+                                                            'bg-blue-50 border-blue-200'
+                                                        }`}>
+                                                            <div className={`text-2xl font-bold ${
+                                                                stat.type === 'success' ? 'text-green-700' :
+                                                                stat.type === 'warning' ? 'text-yellow-700' :
+                                                                stat.type === 'danger' ? 'text-red-700' :
+                                                                'text-blue-700'
+                                                            }`}>
+                                                                {stat.value}
+                                                            </div>
+                                                            <div className="text-xs text-gray-600 mt-1">{stat.label}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            
+                                            {/* Formatted Content */}
+                                            <div className="space-y-4">
+                                                {sections.map((section, idx) => (
+                                                    <div key={idx} className="text-sm text-gray-700 leading-relaxed">
+                                                        {section.header && (
+                                                            <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                                                <span className="text-blue-600">▸</span>
+                                                                {section.header}
+                                                            </h4>
+                                                        )}
+                                                        <p 
+                                                            className="pl-4 border-l-2 border-gray-200"
+                                                            dangerouslySetInnerHTML={{ __html: highlightKeyTerms(section.content) }}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </div>
                         )}
 
-                        {/* Recommendations */}
+                        {/* Recommendations - Enhanced */}
                         {(output.recommendation || output.recommendations || output.final_recommendation) && (
-                            <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
-                                <h3 className="font-bold text-blue-900 mb-3 text-lg">Recommendations</h3>
-                                <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
-                                    {output.recommendation || output.recommendations || output.final_recommendation}
-                                </p>
+                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                                        <span className="text-2xl">💡</span>
+                                    </div>
+                                    <h3 className="font-bold text-blue-900 text-lg">Recommendations</h3>
+                                </div>
+                                
+                                {(() => {
+                                    const recText = output.recommendation || output.recommendations || output.final_recommendation;
+                                    const bulletPoints = extractBulletPoints(recText);
+                                    
+                                    return (
+                                        <div className="space-y-3">
+                                            {bulletPoints.length > 0 ? (
+                                                <ul className="space-y-3">
+                                                    {bulletPoints.map((point, idx) => (
+                                                        <li key={idx} className="flex items-start gap-3 bg-white bg-opacity-70 p-3 rounded-lg">
+                                                            <div className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">
+                                                                {idx + 1}
+                                                            </div>
+                                                            <p 
+                                                                className="text-sm text-gray-700 leading-relaxed flex-1"
+                                                                dangerouslySetInnerHTML={{ __html: highlightKeyTerms(point) }}
+                                                            />
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <p 
+                                                    className="text-sm text-gray-700 leading-relaxed"
+                                                    dangerouslySetInnerHTML={{ __html: highlightKeyTerms(recText) }}
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         )}
 
@@ -356,40 +551,110 @@
                             </div>
                         )}
 
-                        {/* Policy Risk Mapping */}
+                        {/* Policy Risk Mapping - Enhanced */}
                         {(output.policy_risk_mapping || metrics.policy_risk_mapping) && (
                             <div className="bg-white rounded-lg shadow p-6">
-                                <h3 className="text-lg font-bold mb-4">Detailed Policy Risk Analysis</h3>
-                                <div className="space-y-4">
-                                    {(output.policy_risk_mapping || metrics.policy_risk_mapping).map((policy, idx) => (
-                                        <div key={idx} className="border-2 rounded-lg p-4 hover:shadow-md transition-shadow">
-                                            <div className="flex items-start justify-between mb-3">
-                                                <h4 className="font-bold text-base text-gray-900">{policy.policy_id.replace(/_/g, ' ')}</h4>
-                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                                    policy.status === 'pass' ? 'bg-green-100 text-green-700' :
-                                                    policy.status === 'needs_attention' ? 'bg-yellow-100 text-yellow-700' :
-                                                    'bg-red-100 text-red-700'
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                        <span className="text-2xl">🔍</span>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">Detailed Policy Risk Analysis</h3>
+                                </div>
+                                
+                                <div className="space-y-5">
+                                    {(output.policy_risk_mapping || metrics.policy_risk_mapping).map((policy, idx) => {
+                                        const keyActions = extractBulletPoints(policy.reason);
+                                        const sections = detectSections(policy.reason);
+                                        
+                                        return (
+                                            <div key={idx} className="border-2 rounded-lg overflow-hidden hover:shadow-lg transition-all">
+                                                {/* Header */}
+                                                <div className={`p-4 ${
+                                                    policy.status === 'pass' ? 'bg-green-50 border-b-2 border-green-200' :
+                                                    policy.status === 'needs_attention' ? 'bg-yellow-50 border-b-2 border-yellow-200' :
+                                                    'bg-red-50 border-b-2 border-red-200'
                                                 }`}>
-                                                    {policy.status.replace(/_/g, ' ').toUpperCase()}
-                                                </span>
-                                            </div>
-                                            
-                                            {policy.related_risks && policy.related_risks.length > 0 && (
-                                                <div className="mb-3">
-                                                    <p className="text-xs font-semibold text-gray-600 mb-2">Related Risks:</p>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {policy.related_risks.map((risk, ridx) => (
-                                                            <span key={ridx} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                                                                {risk.replace(/_/g, ' ')}
-                                                            </span>
-                                                        ))}
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg ${
+                                                                policy.status === 'pass' ? 'bg-green-600' :
+                                                                policy.status === 'needs_attention' ? 'bg-yellow-600' :
+                                                                'bg-red-600'
+                                                            }`}>
+                                                                {policy.status === 'pass' ? '✓' : 
+                                                                 policy.status === 'needs_attention' ? '⚠' : '✗'}
+                                                            </div>
+                                                            <h4 className="font-bold text-base text-gray-900">
+                                                                {policy.policy_id.replace(/_/g, ' ')}
+                                                            </h4>
+                                                        </div>
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                                            policy.status === 'pass' ? 'bg-green-600 text-white' :
+                                                            policy.status === 'needs_attention' ? 'bg-yellow-600 text-white' :
+                                                            'bg-red-600 text-white'
+                                                        }`}>
+                                                            {policy.status.replace(/_/g, ' ').toUpperCase()}
+                                                        </span>
                                                     </div>
+                                                    
+                                                    {/* Related Risks */}
+                                                    {policy.related_risks && policy.related_risks.length > 0 && (
+                                                        <div className="mt-3">
+                                                            <p className="text-xs font-semibold text-gray-600 mb-2">🎯 Related Risks:</p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {policy.related_risks.map((risk, ridx) => (
+                                                                    <span key={ridx} className="text-xs bg-white bg-opacity-70 text-gray-700 px-2 py-1 rounded border border-gray-300">
+                                                                        {risk.replace(/_/g, ' ')}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                            
-                                            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{policy.reason}</p>
-                                        </div>
-                                    ))}
+                                                
+                                                {/* Content */}
+                                                <div className="p-4 bg-white">
+                                                    {keyActions.length > 2 ? (
+                                                        <div className="space-y-4">
+                                                            {/* Summary of gaps */}
+                                                            <div>
+                                                                <h5 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                                                    <span className="text-red-600">⚠️</span>
+                                                                    Key Gaps & Issues:
+                                                                </h5>
+                                                                <p className="text-sm text-gray-600 leading-relaxed pl-6 border-l-2 border-gray-300">
+                                                                    {sections[0]?.content.substring(0, 200)}...
+                                                                </p>
+                                                            </div>
+                                                            
+                                                            {/* Action items */}
+                                                            <div>
+                                                                <h5 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                                                    <span className="text-blue-600">📋</span>
+                                                                    Required Actions:
+                                                                </h5>
+                                                                <ul className="space-y-2">
+                                                                    {keyActions.slice(0, 4).map((action, aidx) => (
+                                                                        <li key={aidx} className="flex items-start gap-2 text-sm text-gray-700">
+                                                                            <span className="text-blue-600 mt-1 flex-shrink-0">▸</span>
+                                                                            <span 
+                                                                                dangerouslySetInnerHTML={{ __html: highlightKeyTerms(action) }}
+                                                                            />
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <p 
+                                                            className="text-sm text-gray-700 leading-relaxed"
+                                                            dangerouslySetInnerHTML={{ __html: highlightKeyTerms(policy.reason) }}
+                                                        />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
